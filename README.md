@@ -1,5 +1,7 @@
 # FoundSC
-🎒 Campus Lost & Found App 🔹 The Problem
+🎒 Campus Lost & Found App 
+
+🔹 The Problem
 
 Students lose things all the time (water bottles, laptops, IDs, bikes, calculators).
 
