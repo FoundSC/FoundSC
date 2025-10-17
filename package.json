@@ -2,9 +2,13 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.75.0",
     "cross-fetch": "^4.1.0",
-    "react-native-url-polyfill": "^3.0.0"
+    "expo": "^54.0.13",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
-    "supabase": "^2.51.0"
+    "@types/react": "~19.1.10",
+    "supabase": "^2.51.0",
+    "typescript": "~5.9.2"
   }
 }
