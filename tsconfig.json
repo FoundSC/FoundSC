@@ -1,4 +1,9 @@
 {
-  "compilerOptions": {},
+  "compilerOptions": {
+    "baseUrl": "./app", // Adjust this if your components are in a different directory
+    "paths": {
+      "@/*": ["*"]
+    }
+  },
   "extends": "expo/tsconfig.base"
 }
