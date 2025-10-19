@@ -110,3 +110,11 @@ Environment Files:
 - **Frontend (FE1 & FE2)**: User stories 1 and 2 - Create blank app → list main page + Add Post → post creation with image upload
 - **Backend (BE1 & BE2 & BE3)**: User story 3 - Create database + data model → seed dummy data
 - **Integration (shared)**: User story 4 - Connect frontend and backend end-to-end
+
+
+### App Set Up
+1. Make sure you have npm and npx installed: If *npm -v* and *npx -v* do not show a version, install them.
+2. Install expo by doing *npm install expo*
+3. Install the required packages using *npm install*
+4. There may still be some packages that you need to install. If so, do *npm install [package] --legacy-peer-deps
+5. To run the app, type *npx expo start* and press "w" on your keyboard.
