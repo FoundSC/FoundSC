@@ -6,6 +6,8 @@ import {
   FlatList,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Card, Button, Dialog, IconButton } from 'react-native-paper';
 
@@ -114,42 +116,47 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
 
       {editingPost && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Edit Post</Text>
-              <Text style={styles.modalDescription}>Make changes to your post.</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}
+          >
+            <View style={styles.modalContent}>
+              <ScrollView>
+                <Text style={styles.modalTitle}>Edit Post</Text>
+                <Text style={styles.modalDescription}>Make changes to your post.</Text>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Title</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter post title"
-                  value={editTitle}
-                  onChangeText={setEditTitle}
-                />
-              </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Title</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter post title"
+                    value={editTitle}
+                    onChangeText={setEditTitle}
+                  />
+                </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Content</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Write your post content..."
-                  value={editContent}
-                  onChangeText={setEditContent}
-                  multiline
-                />
-              </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Content</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Write your post content..."
+                    value={editContent}
+                    onChangeText={setEditContent}
+                    multiline
+                  />
+                </View>
 
-              <View style={styles.modalActions}>
-                <Button mode="outlined" onPress={() => setEditingPost(null)} style={styles.button}>
-                  Cancel
-                </Button>
-                <Button mode="contained" onPress={handleEditSubmit} style={styles.button}>
-                  Save Changes
-                </Button>
-              </View>
-            </ScrollView>
-          </View>
+                <View style={styles.modalActions}>
+                  <Button mode="outlined" onPress={() => setEditingPost(null)} style={styles.button}>
+                    Cancel
+                  </Button>
+                  <Button mode="contained" onPress={handleEditSubmit} style={styles.button}>
+                    Save Changes
+                  </Button>
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       )}
 
@@ -182,7 +189,17 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyBox: { borderWidth: 2, borderStyle: 'dashed', borderColor: '#ddd', borderRadius: 8, padding: 48, width: '100%' },
   emptyText: { textAlign: 'center', fontSize: 16, color: '#666' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 1000,
+  },
   modalContent: { backgroundColor: '#ffffff', borderRadius: 12, padding: 24, width: '90%', maxHeight: '80%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
   modalDescription: { fontSize: 14, color: '#666', marginBottom: 24 },

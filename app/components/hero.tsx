@@ -1,46 +1,138 @@
-import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
+import React from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Button } from 'react-native-paper';
+import Icon from 'react-native-vector-icons/Ionicons'; 
+
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-20 sm:py-32 lg:py-40">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-1.5 text-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent"></span>
-            </span>
-            <span className="text-muted-foreground">Now Available</span>
-          </div>
+    <View style={styles.container}>
+      {/* Badge */}
+      <View style={styles.badge}>
+        <View style={styles.pingContainer}>
+          <View style={styles.pingOuter} />
+          <View style={styles.pingInner} />
+        </View>
+        <Text style={styles.badgeText}>Now Available</Text>
+      </View>
 
-          <h1 className="text-balance text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            Discover What's Been <span className="text-accent">Found</span>
-          </h1>
+      {/* Heading */}
+      <Text style={styles.heading}>
+        Discover What's Been <Text style={styles.accent}>Found</Text>
+      </Text>
 
-          <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl">
-            Connect lost items with their owners. A modern platform designed to reunite people with their belongings
-            through community-driven discovery.
-          </p>
+      {/* Subheading */}
+      <Text style={styles.subheading}>
+        Connect lost items with their owners. A modern platform designed to reunite people with their belongings through community-driven discovery.
+      </Text>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="w-full sm:w-auto">
-              Start Searching
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="outline" className="w-full sm:w-auto bg-transparent">
-              Report Found Item
-            </Button>
-          </div>
+      {/* Buttons */}
+      <View style={styles.buttonRow}>
+        <Button
+          mode="contained"
+          style={styles.button}
+          onPress={() => console.log('Start Searching')}
+        >
+          Start Searching
+          <Icon name="arrow-forward" size={16} style={styles.buttonIcon} />
+        </Button>
 
-          <div className="mt-16 flex items-center justify-center gap-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="h-px w-8 bg-border"></div>
-              <span>Trusted by 10,000+ users</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
+        <Button
+          mode="outlined"
+          style={styles.button}
+          onPress={() => console.log('Report Found Item')}
+        >
+          Report Found Item
+        </Button>
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <View style={styles.footerDivider} />
+        <Text style={styles.footerText}>Trusted by 10,000+ users</Text>
+      </View>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  pingContainer: {
+    width: 8,
+    height: 8,
+    marginRight: 6,
+  },
+  pingOuter: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0ea5a4',
+    borderRadius: 4,
+    opacity: 0.3,
+    // For animation, you can use Animated API
+  },
+  pingInner: {
+    width: 8,
+    height: 8,
+    backgroundColor: '#0ea5a4',
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    color: '#555',
+  },
+  heading: {
+    fontSize: 32,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  accent: {
+    color: '#0ea5a4',
+  },
+  subheading: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#555',
+    marginBottom: 20,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 16,
+  },
+  button: {
+    marginHorizontal: 8,
+  },
+  buttonIcon: {
+    marginLeft: 6,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  footerDivider: {
+    width: 32,
+    height: 1,
+    backgroundColor: '#ccc',
+    marginRight: 8,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#555',
+  },
+});
