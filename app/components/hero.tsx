@@ -46,11 +46,6 @@ export function Hero() {
         </Button>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <View style={styles.footerDivider} />
-        <Text style={styles.footerText}>Trusted by 10,000+ users</Text>
-      </View>
     </View>
   );
 }

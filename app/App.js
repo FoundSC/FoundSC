@@ -40,20 +40,7 @@ export default function App() {
 
 
   const handleDeletePost = (id) => {
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setPosts((prev) => prev.filter((p) => p.id !== id));
-          },
-        },
-      ]
-    );
+    setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
