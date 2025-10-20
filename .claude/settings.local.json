@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/calebcho/code/school/cse115a/FoundSC/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
