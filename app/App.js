@@ -16,15 +16,15 @@ import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
 
-// Initialize Supabase client
-const supabaseUrl = 'https://jvxyoybuwxtpzsvzevbp.supabase.co'; // Replace with your Supabase URL
+
+const supabaseUrl = 'https://jvxyoybuwxtpzsvzevbp.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eHlveWJ1d3h0cHpzdnpldmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1Mzc4NzEsImV4cCI6MjA3NjExMzg3MX0.Bkk6ef-W7yVlhBnWwSkG7qolmmEW9LSBy6cGZPNAMzA'; // Replace with your Supabase anon key
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function App() {
   const [posts, setPosts] = useState([]);
 
-  // Fetch posts from Supabase
+  
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('posts')
@@ -33,35 +33,47 @@ export default function App() {
     if (error) {
       console.error('Error fetching posts:', error);
     } else {
+      console.log('Fetched posts:', data);
       setPosts(data);
     }
   };
 
   // Add a new post
-  const handleAddPost = async (title, content) => {
-    const { data, error } = await supabase
-      .from('posts')
-      .insert([{ title, content, createdAt: new Date() }]);
+  const handleAddPost = async (title, description, type, category, image_url) => {
+  const { data, error } = await supabase
+    .from('posts')
+    .insert([{
+      title,
+      description,
+      type,          
+      category,      
+      image_url,
+      created_at: new Date(),
+    }]).select();
 
-    if (error) {
-      console.error('Error adding post:', error);
-    } else {
-      setPosts((prev) => [data[0], ...prev]); // Add the new post to the state
-    }
-  };
+  if (error) {
+    console.error('Error adding post:', error);
+  } else {
+    setPosts((prev) => [data[0], ...prev]);
+  }
+};
 
   // Edit an existing post
-  const handleEditPost = async (id, title, content) => {
+  const handleEditPost = async (id, title, description) => {
+    if (!title || !description) {
+    console.error('Title or content is missing');
+    return; 
+    }
     const { error } = await supabase
       .from('posts')
-      .update({ title, content })
+      .update({ title, description })
       .eq('id', id);
 
     if (error) {
       console.error('Error editing post:', error);
     } else {
       setPosts((prev) =>
-        prev.map((post) => (post.id === id ? { ...post, title, content } : post))
+        prev.map((post) => (post.id === id ? { ...post, title, description } : post))
       );
     }
   };
@@ -81,7 +93,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchPosts(); // Fetch posts when the component mounts
+    fetchPosts(); 
   }, []);
 
   return (
