@@ -1,3 +1,8 @@
+-- Ensure optional columns exist before inserting sample data
+ALTER TABLE IF EXISTS posts
+  ADD COLUMN IF NOT EXISTS location TEXT,
+  ADD COLUMN IF NOT EXISTS contact_info TEXT;
+
 -- Insert some sample data for testing
 INSERT INTO posts (title, description, type, category, location, contact_info) VALUES
 ('Lost iPhone 15', 'Black iPhone 15 Pro lost near McHenry Library around 2pm', 'lost', 'electronics', 'McHenry Library', 'contact@example.com'),

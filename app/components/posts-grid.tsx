@@ -12,16 +12,16 @@ import {
 import { Card, Button, Dialog, IconButton } from 'react-native-paper';
 
 type Post = {
-  id: string;
+  id: string | number;
   title: string;
-  content: string;
-  createdAt: Date;
+  description: string;
+  created_at?: string;
 };
 
 interface PostsGridProps {
   posts: Post[];
-  onEdit: (id: string, title: string, content: string) => void;
-  onDelete: (id: string) => void;
+  onEdit: (id: string | number, title: string, description: string) => void;
+  onDelete: (id: string | number) => void;
 }
 
 export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
@@ -34,7 +34,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   const handleEditClick = (post: Post) => {
     setEditingPost(post);
     setEditTitle(post.title);
-    setEditContent(post.content);
+    setEditContent(post.description ?? '');
   };
 
   const handleEditSubmit = () => {
@@ -69,13 +69,13 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
             </Text>
             <View style={styles.actions}>
               <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
-              <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id)} />
+              <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
             </View>
           </View>
 
           <Text style={styles.date}>
-            {item.createdAt instanceof Date
-              ? item.createdAt.toLocaleDateString('en-US', {
+            {item.created_at
+              ? new Date(item.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'short',
                   day: 'numeric',
@@ -84,7 +84,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
           </Text>
 
           <Text style={styles.content} numberOfLines={4}>
-            {item.content}
+            {item.description}
           </Text>
         </Card.Content>
       </Card>
@@ -108,7 +108,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
       <FlatList
         data={posts}
         renderItem={renderPost}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         numColumns={2}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.row}
@@ -136,10 +136,10 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Content</Text>
+                  <Text style={styles.label}>Description</Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
-                    placeholder="Write your post content..."
+                    placeholder="Write your post description..."
                     value={editContent}
                     onChangeText={setEditContent}
                     multiline
