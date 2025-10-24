@@ -10,11 +10,18 @@ import {
   Platform,
 } from 'react-native';
 import { Card, Button, Dialog, IconButton } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+
 
 type Post = {
   id: string;
   title: string;
   content: string;
+  type?: string;
+  category?: string;
+  imageUri?: string;
   createdAt: Date;
 };
 
@@ -38,11 +45,24 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   };
 
   const handleEditSubmit = () => {
-    if (editingPost && editTitle.trim() && editContent.trim()) {
-      onEdit(editingPost.id, editTitle, editContent);
+    if (
+      editingPost &&
+      editTitle.trim() &&
+      editContent.trim()
+    ) {
+      onEdit(editingPost.id, {
+        ...editingPost,
+        title: editTitle,
+        content: editContent,
+        imageUri: editImageUri || editingPost.imageUri,
+        type: editingPost.type,
+        category: editingPost.category,
+      });
+
       setEditingPost(null);
       setEditTitle('');
       setEditContent('');
+      setEditImageUri(null);
     }
   };
 
@@ -58,6 +78,32 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
     }
     setDeleteDialogVisible(false);
   };
+
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+
+// function to pick new image
+const pickEditImage = async () => {
+  // Ask permission to access media library
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Sorry, we need media library permissions to change the image.');
+    return;
+  }
+
+  // Launch picker
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 0.8,
+  });
+
+  // Handle selection
+  if (!result.canceled && result.assets && result.assets.length > 0) {
+    const uri = result.assets[0].uri;
+    setEditImageUri(uri);
+    setEditingPost((prev) => (prev ? { ...prev, imageUri: uri } : prev));
+  }
+};
 
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.cardContainer}>
@@ -83,9 +129,25 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
               : ''}
           </Text>
 
+          {item.imageUri ? (
+            <Image
+              source={{ uri: item.imageUri }}
+              style={{
+                width: '100%',
+                height: 160,
+                borderRadius: 8,
+                marginBottom: 10,
+              }}
+              resizeMode="cover"
+            />
+          ) : null}
+
           <Text style={styles.content} numberOfLines={4}>
             {item.content}
           </Text>
+          <Text style={styles.meta}>Type: {item.type || '-'}</Text>
+          <Text style={styles.meta}>Category: {item.category || '-'}</Text>
+          
         </Card.Content>
       </Card>
     </View>
@@ -125,6 +187,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
                 <Text style={styles.modalTitle}>Edit Post</Text>
                 <Text style={styles.modalDescription}>Make changes to your post.</Text>
 
+                {/* Title */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Title</Text>
                   <TextInput
@@ -135,8 +198,9 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
                   />
                 </View>
 
+                {/* Description */}
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Content</Text>
+                  <Text style={styles.label}>Description</Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     placeholder="Write your post content..."
@@ -146,11 +210,76 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
                   />
                 </View>
 
+                {/* Type Dropdown */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Type</Text>
+                  <View style={styles.dropdownContainer}>
+                    <Picker
+                      selectedValue={editingPost.type || 'Lost'}
+                      onValueChange={(value) =>
+                        setEditingPost((prev) => (prev ? { ...prev, type: value } : prev))
+                      }
+                      style={styles.dropdown}
+                    >
+                      <Picker.Item label="Lost" value="Lost" />
+                      <Picker.Item label="Found" value="Found" />
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Category Dropdown */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Category</Text>
+                  <View style={styles.dropdownContainer}>
+                    <Picker
+                      selectedValue={editingPost.category || 'Other'}
+                      onValueChange={(value) =>
+                        setEditingPost((prev) => (prev ? { ...prev, category: value } : prev))
+                      }
+                      style={styles.dropdown}
+                    >
+                      <Picker.Item label="Electronics" value="Electronics" />
+                      <Picker.Item label="Pets" value="Pets" />
+                      <Picker.Item label="Accessories" value="Accessories" />
+                      <Picker.Item label="Clothing" value="Clothing" />
+                      <Picker.Item label="Other" value="Other" />
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Image Preview */}
+                {editingPost.imageUri ? (
+                  <Image
+                    source={{ uri: editingPost.imageUri }}
+                    style={{
+                      width: '100%',
+                      height: 160,
+                      borderRadius: 8,
+                      marginBottom: 10,
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : null}
+
+                {/* Change Image Button */}
+                <Button
+                  mode="outlined"
+                  onPress={pickEditImage}
+                  style={{ marginBottom: 12 }}
+                >
+                  Change Image
+                </Button>
+
+                {/* Actions */}
                 <View style={styles.modalActions}>
                   <Button mode="outlined" onPress={() => setEditingPost(null)} style={styles.button}>
                     Cancel
                   </Button>
-                  <Button mode="contained" onPress={handleEditSubmit} style={styles.button}>
+                  <Button
+                    mode="contained"
+                    onPress={handleEditSubmit}
+                    style={styles.button}
+                  >
                     Save Changes
                   </Button>
                 </View>
@@ -209,4 +338,10 @@ const styles = StyleSheet.create({
   textArea: { height: 120, textAlignVertical: 'top' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24 },
   button: { minWidth: 100, marginLeft: 12 },
+  meta: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 6,
+    fontStyle: 'italic',
+  }
 });

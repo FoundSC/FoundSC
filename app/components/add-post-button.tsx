@@ -1,4 +1,44 @@
-import React, { useState } from "react";
+import React from 'react';
+import { StyleSheet } from 'react-native';
+import { Button } from 'react-native-paper';
+
+export function AddPostButton({ onAddPost }) {
+  return (
+    <Button
+      mode="contained"
+      onPress={onAddPost}
+      icon="plus"
+      style={styles.button}
+      labelStyle={styles.label}
+      contentStyle={styles.content}
+    >
+      Add Post
+    </Button>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: '#00B3B3', // teal color
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginVertical: 10,
+  },
+  content: {
+    flexDirection: 'row-reverse', // puts "+" before text
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  label: {
+    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 16,
+  },
+});
+
+
+
+/*import React, { useState } from "react";
 import {
   View,
   Text,
@@ -31,12 +71,12 @@ export function AddPostButton({ onAddPost }: AddPostButtonProps) {
 
   return (
     <View>
-      {/* Button to trigger modal */}
+      {/* Button to trigger modal *//*}
       <Pressable style={styles.trigger} onPress={() => setOpen(true)}>
         <Text style={styles.triggerText}>＋ Add Post</Text>
       </Pressable>
 
-      {/* Modal for creating a new post */}
+      {/* Modal for creating a new post *//*}
       <Modal
         visible={open}
         animationType="slide"
@@ -190,3 +230,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+*/
