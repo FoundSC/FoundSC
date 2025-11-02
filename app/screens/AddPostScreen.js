@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { View, TextInput, Button, Text, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
+// import { Picker } from '@react-native-picker/picker';
+
 
 export default function AddPostScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -69,8 +71,10 @@ export default function AddPostScreen({ navigation }) {
     <View style={{ padding: 16, gap: 8 }}>
       <TextInput placeholder="Title" value={title} onChangeText={setTitle} />
       <TextInput placeholder="Description" value={description} onChangeText={setDescription} multiline />
+      
       <TextInput placeholder="Type lost or found" value={type} onChangeText={setType} />
       <TextInput placeholder="Category" value={category} onChangeText={setCategory} />
+     
       <Button title="Pick Image" onPress={pickImage} />
       {image && <Image source={{ uri: image.uri }} style={{ width: 160, height: 160 }} />}
       <Button title={submitting ? 'Submitting…' : 'Create Post'} onPress={onSubmit} disabled={submitting} />
