@@ -13,7 +13,6 @@ import {
 import { Provider as PaperProvider, Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
-import * as FileSystem from 'expo-file-system';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -106,46 +105,26 @@ export default function App() {
       const fileName = `uploads/${Date.now()}_${uri.split('/').pop() || 'image.jpg'}`;
       console.log('[upload] starting', { uri, fileName });
 
-      // Primary path: build a Blob and use supabase-js upload
-      try {
-        const res = await fetch(uri);
-        if (!res.ok) {
-          console.warn('[upload] fetch failed', res.status, '— falling back to FileSystem.uploadAsync');
-          throw new Error('fetch-failed');
-        }
-        const blob = await res.blob();
-        console.log('[upload] blob built', { type: blob.type, size: blob.size });
+      const res = await fetch(uri);
+      if (!res.ok) {
+        console.error('[upload] fetch failed', res.status);
+        return null;
+      }
+      const ab = await res.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      const contentType = guessMimeFromUri(uri);
+      console.log('[upload] buffer built', { bytes: bytes.byteLength, contentType });
 
-        const { error } = await supabase.storage
-          .from('post-images')
-          .upload(fileName, blob, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: blob.type || guessMimeFromUri(uri),
-          });
-        if (error) {
-          console.warn('[upload] supabase upload error via blob:', error.message || error, '— falling back');
-          throw new Error('blob-upload-failed');
-        }
-      } catch (blobErr) {
-        // Fallback for native: use REST upload with binary content
-        const uploadUrl = `${supabaseUrl}/storage/v1/object/post-images/${fileName}`;
-        const mime = guessMimeFromUri(uri);
-        console.log('[upload:fallback] using FileSystem.uploadAsync');
-        const resp = await FileSystem.uploadAsync(uploadUrl, uri, {
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-          headers: {
-            Authorization: `Bearer ${supabaseKey}`,
-            'x-upsert': 'false',
-            'Content-Type': mime,
-          },
+      const { error } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, bytes, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType,
         });
-        if (!(resp.status >= 200 && resp.status < 300)) {
-          console.error('[upload:fallback] upload error', resp.status, resp.body);
-          return null;
-        }
-        console.log('[upload:fallback] upload success');
+      if (error) {
+        console.error('[upload] supabase upload error via blob:', error.message || error);
+        return null;
       }
 
       const { data } = supabase.storage.from('post-images').getPublicUrl(fileName);
