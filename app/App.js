@@ -8,8 +8,12 @@ import {
   Modal,
   Text,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Provider as PaperProvider, Button } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -30,10 +34,17 @@ export default function App() {
 
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
-  const [newType, setNewType] = useState('lost');
-  const [newCategory, setNewCategory] = useState('Other');
+  const [newType, setNewType] = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [newImageUri, setNewImageUri] = useState(null);
 
-  const[image, setImage] = useState(null);
+  const CATEGORIES = [
+    'Electronics',
+    'Pets',
+    'Accessories',
+    'Clothing',
+    'Other',
+  ];
 
   
   const fetchPosts = async () => {
@@ -48,6 +59,78 @@ export default function App() {
       setPosts(data);
     }
   };
+
+  async function pickImage() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      console.error('Permission to access media library was denied');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      // new API per expo-image-picker
+      mediaTypes: ImagePicker.MediaType.Images,
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets?.length) {
+      setNewImageUri(result.assets[0].uri);
+    }
+  }
+
+  function guessMimeFromUri(uri) {
+    const lower = (uri || '').toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.heic') || lower.endsWith('.heif')) return 'image/heic';
+    return 'image/jpeg';
+  }
+
+  async function uploadImageIfNeeded(uri) {
+    if (!uri) return null;
+    try {
+      const fileName = `uploads/${Date.now()}_${uri.split('/').pop() || 'image.jpg'}`;
+      console.log('[upload] starting', { uri, fileName });
+
+      if (Platform.OS === 'web') {
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        console.log('[upload] blob built', { type: blob.type, size: blob.size });
+        const { error } = await supabase.storage.from('post-images').upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: blob.type || guessMimeFromUri(uri),
+        });
+        if (error) {
+          console.error('Upload error:', error.message);
+          return null;
+        }
+      } else {
+        // Native: upload binary directly via REST to avoid blob conversion issues
+        const uploadUrl = `${supabaseUrl}/storage/v1/object/post-images/${fileName}`;
+        const mime = guessMimeFromUri(uri);
+        const resp = await FileSystem.uploadAsync(uploadUrl, uri, {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            Authorization: `Bearer ${supabaseKey}`,
+            'x-upsert': 'false',
+            'Content-Type': mime,
+          },
+        });
+        if (!(resp.status >= 200 && resp.status < 300)) {
+          console.error('Upload error (native):', resp.status, resp.body);
+          return null;
+        }
+      }
+      const { data } = supabase.storage.from('post-images').getPublicUrl(fileName);
+      const publicUrl = data?.publicUrl || null;
+      console.log('[upload] publicUrl', publicUrl);
+      return publicUrl;
+    } catch (e) {
+      console.error('Upload exception:', e);
+      return null;
+    }
+  }
 
   // Add a new post
   const handleAddPost = async (title, description, type, category, image_url) => {
@@ -70,12 +153,17 @@ export default function App() {
       return;
     }
 
+    const uploadedUrl = image_url || (await uploadImageIfNeeded(newImageUri));
+    if (newImageUri && !uploadedUrl) {
+      console.warn('[upload] image selected but no public URL returned; saving without image');
+    }
+
     const payload = {
       title: safeTitle,
       description: safeDescription || null,
       type: safeType,
       category: safeCategory,
-      image_url: image_url || null,
+      image_url: uploadedUrl || null,
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
@@ -86,6 +174,7 @@ export default function App() {
     }
     if (data && data[0]) {
       setPosts((prev) => [data[0], ...prev]);
+      setNewImageUri(null);
     }
   };
 
@@ -184,22 +273,47 @@ export default function App() {
 
                   <View style={styles.inputContainer}>
                     <Text style={styles.label}>Type</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Lost or Found"
-                      value={newType}
-                      onChangeText={setNewType}
-                    />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Button
+                        mode={newType === 'lost' ? 'contained' : 'outlined'}
+                        onPress={() => setNewType('lost')}
+                        style={{ borderRadius: 20 }}
+                      >
+                        Lost
+                      </Button>
+                      <Button
+                        mode={newType === 'found' ? 'contained' : 'outlined'}
+                        onPress={() => setNewType('found')}
+                        style={{ borderRadius: 20 }}
+                      >
+                        Found
+                      </Button>
+                    </View>
                   </View>
 
                   <View style={styles.inputContainer}>
                     <Text style={styles.label}>Category</Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="e.g. Electronics, Pets"
+                      placeholder="e.g. electronics, books, personal"
                       value={newCategory}
                       onChangeText={setNewCategory}
+                      autoCapitalize="none"
                     />
+                  </View>
+
+                  {newImageUri ? (
+                    <Image
+                      source={{ uri: newImageUri }}
+                      style={{ width: '100%', height: 160, borderRadius: 8, marginBottom: 12 }}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+
+                  <View style={styles.imageRow}>
+                    <Button mode="outlined" onPress={pickImage} style={styles.addImageBtn}>
+                      + Add Image
+                    </Button>
                   </View>
 
                   <View style={styles.modalActions}>
@@ -211,8 +325,10 @@ export default function App() {
                         setNewContent('');
                         setNewType('');
                         setNewCategory('');
+                        setNewImageUri(null);
                       }}
-                      style={styles.button}
+                      style={styles.cancelBtn}
+                      textColor="#5b21b6"
                     >
                       Cancel
                     </Button>
@@ -225,8 +341,10 @@ export default function App() {
                         setNewContent('');
                         setNewType('');
                         setNewCategory('');
+                        setNewImageUri(null);
                       }}
-                      style={styles.button}
+                      style={styles.submitBtn}
+                      buttonColor="#6d28d9"
                       disabled={
                         !newTitle.trim() ||
                         !newCategory.trim() ||
@@ -261,6 +379,17 @@ const styles = StyleSheet.create({
   postsSection: {
     flex: 1,
     marginTop: 10,
+  },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  dropdown: {
+    width: '100%',
+    height: 44,
+    backgroundColor: '#fff',
   },
   modalOverlay: {
     flex: 1,
@@ -308,6 +437,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 24,
+  },
+  imageRow: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addImageBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+  },
+  cancelBtn: {
+    minWidth: 100,
+    marginRight: 12,
+    borderRadius: 20,
+  },
+  submitBtn: {
+    flexGrow: 1,
+    borderRadius: 24,
   },
   button: {
     minWidth: 100,

@@ -168,6 +168,7 @@ const pickEditImage = async () => {
         numColumns={2}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.row}
+        scrollEnabled={false}
       />
 
       {editingPost && (
