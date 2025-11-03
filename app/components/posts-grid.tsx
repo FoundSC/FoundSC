@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   View,
+  FlatList,
+  Modal,
+  Pressable,
   Text,
   StyleSheet,
-  FlatList,
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
@@ -289,16 +291,39 @@ const pickEditImage = async () => {
         </View>
       )}
 
-      <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
-        <Dialog.Title>Are you sure?</Dialog.Title>
-        <Dialog.Content>
-          <Text>This action cannot be undone. This will permanently delete your post.</Text>
-        </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={() => setDeleteDialogVisible(false)}>Cancel</Button>
-          <Button onPress={handleDeleteConfirm}>Delete</Button>
-        </Dialog.Actions>
-      </Dialog>
+      <Modal
+        visible={deleteDialogVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteDialogVisible(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setDeleteDialogVisible(false)}
+          activeOpacity={1}
+        >
+          <Pressable style={styles.dialogCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.dialogTitle}>Confirm Deletion</Text>
+            <Text style={styles.dialogText}>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </Text>
+            <View style={styles.dialogActions}>
+              <Pressable 
+                style={[styles.dialogBtn, styles.dialogBtnCancel]} 
+                onPress={() => setDeleteDialogVisible(false)}
+              >
+                <Text style={styles.dialogBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.dialogBtn, styles.dialogBtnDelete]} 
+                onPress={handleDeleteConfirm}
+              >
+                <Text style={styles.dialogBtnDeleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -318,16 +343,58 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyBox: { borderWidth: 2, borderStyle: 'dashed', borderColor: '#ddd', borderRadius: 8, padding: 48, width: '100%' },
   emptyText: { textAlign: 'center', fontSize: 16, color: '#666' },
-  modalOverlay: { 
-    position: 'absolute', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    bottom: 0, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    zIndex: 1000,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  dialogCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  dialogText: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  dialogActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  dialogBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  dialogBtnCancel: {
+    backgroundColor: "#f3f4f6",
+  },
+  dialogBtnCancelText: {
+    color: "#111",
+    fontWeight: "600",
+  },
+  dialogBtnDelete: {
+    backgroundColor: "#ef4444",
+  },
+  dialogBtnDeleteText: {
+    color: "#fff",
+    fontWeight: "700",
   },
   modalContent: { backgroundColor: '#ffffff', borderRadius: 12, padding: 24, width: '90%', maxHeight: '80%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },

@@ -1,133 +1,88 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Button } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/Ionicons'; 
-
+import React from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 
 export function Hero() {
   return (
-    <View style={styles.container}>
-      {/* Badge */}
-      <View style={styles.badge}>
-        <View style={styles.pingContainer}>
-          <View style={styles.pingOuter} />
-          <View style={styles.pingInner} />
+    <View style={styles.section}>
+      <View style={styles.content}>
+        <Text style={styles.badge}>Community-Driven Discovery</Text>
+        <Text style={styles.heading}>Lost something? Found something?</Text>
+        <Text style={styles.subheading}>
+          Connect with your community to reunite lost items with their owners.
+        </Text>
+        <View style={styles.actions}>
+          <Pressable style={styles.primary} onPress={() => { /* navigate to report lost */ }}>
+            <Text style={styles.primaryText}>Report Lost Item</Text>
+          </Pressable>
+          <Pressable style={styles.secondary} onPress={() => { /* navigate to report found */ }}>
+            <Text style={styles.secondaryText}>Report Found Item</Text>
+          </Pressable>
         </View>
-        <Text style={styles.badgeText}>Now Available</Text>
       </View>
-
-      {/* Heading */}
-      <Text style={styles.heading}>
-        Discover What's Been <Text style={styles.accent}>Found</Text>
-      </Text>
-
-      {/* Subheading */}
-      <Text style={styles.subheading}>
-        Connect lost items with their owners. A modern platform designed to reunite people with their belongings through community-driven discovery.
-      </Text>
-
-      {/* Buttons */}
-      <View style={styles.buttonRow}>
-        <Button
-          mode="contained"
-          style={styles.button}
-          onPress={() => console.log('Start Searching')}
-        >
-          Start Searching
-          <Icon name="arrow-forward" size={16} style={styles.buttonIcon} />
-        </Button>
-
-        <Button
-          mode="outlined"
-          style={styles.button}
-          onPress={() => console.log('Report Found Item')}
-        >
-          Report Found Item
-        </Button>
-      </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  section: {
+    paddingVertical: 30,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  content: {
+    maxWidth: 600,
+    alignItems: "center",
   },
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0ea5a4",
+    backgroundColor: "#e0f7f7",
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  pingContainer: {
-    width: 8,
-    height: 8,
-    marginRight: 6,
-  },
-  pingOuter: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0ea5a4',
-    borderRadius: 4,
-    opacity: 0.3,
-    // For animation, you can use Animated API
-  },
-  pingInner: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#0ea5a4',
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#555',
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: '700',
-    textAlign: 'center',
+    borderRadius: 16,
     marginBottom: 12,
   },
-  accent: {
-    color: '#0ea5a4',
+  heading: {
+    fontSize: 28,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 10,
+    lineHeight: 36,
   },
   subheading: {
     fontSize: 16,
-    textAlign: 'center',
-    color: '#555',
+    color: "#555",
+    textAlign: "center",
     marginBottom: 20,
+    lineHeight: 22,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 16,
+  actions: {
+    flexDirection: "row",
+    gap: 12,
   },
-  button: {
-    marginHorizontal: 8,
+  primary: {
+    backgroundColor: "#0ea5a4",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  buttonIcon: {
-    marginLeft: 6,
+  primaryText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 32,
+  secondary: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  footerDivider: {
-    width: 32,
-    height: 1,
-    backgroundColor: '#ccc',
-    marginRight: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#555',
+  secondaryText: {
+    color: "#111",
+    fontWeight: "600",
+    fontSize: 14,
   },
 });
