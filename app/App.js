@@ -61,19 +61,34 @@ export default function App() {
   };
 
   async function pickImage() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      console.error('Permission to access media library was denied');
-      return;
+    // On web, the picker doesn't require permissions in the same way
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Permission to access media library was denied');
+        return;
+      }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      // new API per expo-image-picker
-      mediaTypes: ImagePicker.MediaType.Images,
-      allowsEditing: true,
-      quality: 0.85,
-    });
-    if (!result.canceled && result.assets?.length) {
-      setNewImageUri(result.assets[0].uri);
+    try {
+      console.log('[pickImage] opening image library');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        // Use Options enum for broader compatibility on iOS
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      if (result.canceled) {
+        console.log('[pickImage] selection canceled');
+        return;
+      }
+      if (result.assets?.length) {
+        console.log('[pickImage] selected', result.assets[0].uri);
+        setNewImageUri(result.assets[0].uri);
+      } else {
+        console.log('[pickImage] no assets returned');
+      }
+    } catch (e) {
+      console.error('[pickImage] error:', e?.message || e);
     }
   }
 
@@ -91,23 +106,32 @@ export default function App() {
       const fileName = `uploads/${Date.now()}_${uri.split('/').pop() || 'image.jpg'}`;
       console.log('[upload] starting', { uri, fileName });
 
-      if (Platform.OS === 'web') {
+      // Primary path: build a Blob and use supabase-js upload
+      try {
         const res = await fetch(uri);
+        if (!res.ok) {
+          console.warn('[upload] fetch failed', res.status, '— falling back to FileSystem.uploadAsync');
+          throw new Error('fetch-failed');
+        }
         const blob = await res.blob();
         console.log('[upload] blob built', { type: blob.type, size: blob.size });
-        const { error } = await supabase.storage.from('post-images').upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: blob.type || guessMimeFromUri(uri),
-        });
+
+        const { error } = await supabase.storage
+          .from('post-images')
+          .upload(fileName, blob, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: blob.type || guessMimeFromUri(uri),
+          });
         if (error) {
-          console.error('Upload error:', error.message);
-          return null;
+          console.warn('[upload] supabase upload error via blob:', error.message || error, '— falling back');
+          throw new Error('blob-upload-failed');
         }
-      } else {
-        // Native: upload binary directly via REST to avoid blob conversion issues
+      } catch (blobErr) {
+        // Fallback for native: use REST upload with binary content
         const uploadUrl = `${supabaseUrl}/storage/v1/object/post-images/${fileName}`;
         const mime = guessMimeFromUri(uri);
+        console.log('[upload:fallback] using FileSystem.uploadAsync');
         const resp = await FileSystem.uploadAsync(uploadUrl, uri, {
           httpMethod: 'POST',
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
@@ -118,10 +142,12 @@ export default function App() {
           },
         });
         if (!(resp.status >= 200 && resp.status < 300)) {
-          console.error('Upload error (native):', resp.status, resp.body);
+          console.error('[upload:fallback] upload error', resp.status, resp.body);
           return null;
         }
+        console.log('[upload:fallback] upload success');
       }
+
       const { data } = supabase.storage.from('post-images').getPublicUrl(fileName);
       const publicUrl = data?.publicUrl || null;
       console.log('[upload] publicUrl', publicUrl);
@@ -178,22 +204,43 @@ export default function App() {
     }
   };
 
-  // Edit an existing post
-  const handleEditPost = async (id, title, description) => {
+  // Edit an existing post (optionally updates type, category, image)
+  const handleEditPost = async (id, title, description, type, category, imageCandidate) => {
     if (!title || !description) {
-    console.error('Title or content is missing');
-    return; 
+      console.error('Title or content is missing');
+      return;
     }
+
+    let image_url_to_set = undefined;
+    // If an image candidate is provided and looks like a local uri, upload first
+    if (imageCandidate && typeof imageCandidate === 'string') {
+      const isRemote = imageCandidate.startsWith('http://') || imageCandidate.startsWith('https://');
+      if (!isRemote) {
+        image_url_to_set = await uploadImageIfNeeded(imageCandidate);
+      } else {
+        image_url_to_set = imageCandidate;
+      }
+    }
+
+    const updatePayload = { title, description };
+    if (typeof type === 'string' && type.trim()) updatePayload.type = type.toLowerCase().trim();
+    if (typeof category === 'string' && category.trim()) updatePayload.category = category.trim();
+    if (image_url_to_set) updatePayload.image_url = image_url_to_set;
+
     const { error } = await supabase
       .from('posts')
-      .update({ title, description })
+      .update(updatePayload)
       .eq('id', id);
 
     if (error) {
       console.error('Error editing post:', error);
     } else {
       setPosts((prev) =>
-        prev.map((post) => (post.id === id ? { ...post, title, description } : post))
+        prev.map((post) =>
+          post.id === id
+            ? { ...post, ...updatePayload }
+            : post
+        )
       );
     }
   };
@@ -334,8 +381,9 @@ export default function App() {
                     </Button>
                     <Button
                       mode="contained"
-                      onPress={() => {
-                        handleAddPost(newTitle, newContent, newType, newCategory, undefined);
+                      onPress={async () => {
+                        console.log('[submit] adding post');
+                        await handleAddPost(newTitle, newContent, newType, newCategory, undefined);
                         setModalVisible(false);
                         setNewTitle('');
                         setNewContent('');

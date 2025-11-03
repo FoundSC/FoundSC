@@ -28,7 +28,14 @@ type Post = {
 
 interface PostsGridProps {
   posts: Post[];
-  onEdit: (id: string | number, title: string, description: string) => void;
+  onEdit: (
+    id: string | number,
+    title: string,
+    description: string,
+    type?: string,
+    category?: string,
+    imageCandidate?: string,
+  ) => void;
   onDelete: (id: string | number) => void;
 }
 
@@ -51,7 +58,17 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
       editTitle.trim() &&
       editContent.trim()
     ) {
-      onEdit(editingPost.id, editTitle, editContent);
+      const updatedType = editingPost.type || undefined;
+      const updatedCategory = editingPost.category || undefined;
+      const imageToPersist = (editImageUri || editingPost.imageUri || editingPost.image_url || undefined) as string | undefined;
+      onEdit(
+        editingPost.id,
+        editTitle,
+        editContent,
+        updatedType as any,
+        updatedCategory as any,
+        imageToPersist as any,
+      );
 
       setEditingPost(null);
       setEditTitle('');
@@ -77,25 +94,37 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
 
 // function to pick new image
 const pickEditImage = async () => {
-  // Ask permission to access media library
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    alert('Sorry, we need media library permissions to change the image.');
-    return;
-  }
+  try {
+    console.log('[edit] request media permission');
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Sorry, we need media library permissions to change the image.');
+      console.warn('[edit] permission denied');
+      return;
+    }
 
-  // Launch picker
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 0.8,
-  });
-
-  // Handle selection
-  if (!result.canceled && result.assets && result.assets.length > 0) {
-    const uri = result.assets[0].uri;
-    setEditImageUri(uri);
-    setEditingPost((prev) => (prev ? { ...prev, imageUri: uri } : prev));
+    console.log('[edit] opening image library');
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (result.canceled) {
+      console.log('[edit] selection canceled');
+      return;
+    }
+    console.log('[edit] result', !!result.assets, result.assets?.length);
+    if (result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      console.log('[edit] selected uri', uri);
+      setEditImageUri(uri);
+      setEditingPost((prev) => (prev ? { ...prev, imageUri: uri } : prev));
+      console.log('[edit] preview set');
+    } else {
+      console.log('[edit] no assets returned');
+    }
+  } catch (e) {
+    console.error('[edit] picker error:', (e as any)?.message || e);
   }
 };
 
