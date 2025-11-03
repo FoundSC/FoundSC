@@ -33,12 +33,30 @@ interface PostsGridProps {
   onDelete: (id: string) => void;
 }
 
+const CATEGORIES = [
+  { key: 'all', label: 'All' },
+  { key: 'Electronics', label: 'Electronics' },
+  { key: 'Pets', label: 'Pets' },
+  { key: 'Clothing', label: 'Clothing' },
+  { key: 'Accessories', label: 'Accessories' },
+  { key: 'Other', label: 'Other' },
+];
+
 export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all'); // Add this state
+
+  // Filter posts by selected category and type
+  const filteredPosts = posts.filter((post) => {
+    const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
+    const matchesType = selectedType === 'all' || post.type === selectedType;
+    return matchesCategory && matchesType;
+  });
 
   const handleEditClick = (post: Post) => {
     setEditingPost(post);
@@ -169,13 +187,83 @@ const pickEditImage = async () => {
 
   return (
     <View style={styles.container}>
+      {/* Category and Type Dropdown Filters - Navigation Bar Style */}
+      <View style={styles.filterNavBar}>
+        <View style={styles.filterNavItem}>
+          <View style={styles.filterNavDropdown}>
+            <Picker
+              selectedValue={selectedCategory}
+              onValueChange={(value) => setSelectedCategory(value)}
+              style={styles.navPicker}
+            >
+              <Picker.Item 
+                label={selectedCategory === 'all' ? 'Category: All' : 'All'} 
+                value="all" 
+              />
+              <Picker.Item 
+                label={selectedCategory === 'Electronics' ? 'Category: Electronics' : 'Electronics'} 
+                value="Electronics" 
+              />
+              <Picker.Item 
+                label={selectedCategory === 'Pets' ? 'Category: Pets' : 'Pets'} 
+                value="Pets" 
+              />
+              <Picker.Item 
+                label={selectedCategory === 'Clothing' ? 'Category: Clothing' : 'Clothing'} 
+                value="Clothing" 
+              />
+              <Picker.Item 
+                label={selectedCategory === 'Accessories' ? 'Category: Accessories' : 'Accessories'} 
+                value="Accessories" 
+              />
+              <Picker.Item 
+                label={selectedCategory === 'Other' ? 'Category: Other' : 'Other'} 
+                value="Other" 
+              />
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.filterNavItem}>
+          <View style={styles.filterNavDropdown}>
+            <Picker
+              selectedValue={selectedType}
+              onValueChange={(value) => setSelectedType(value)}
+              style={styles.navPicker}
+            >
+              <Picker.Item 
+                label={selectedType === 'all' ? 'Type: All' : 'All'} 
+                value="all" 
+              />
+              <Picker.Item 
+                label={selectedType === 'Lost' ? 'Type: Lost' : 'Lost'} 
+                value="Lost" 
+              />
+              <Picker.Item 
+                label={selectedType === 'Found' ? 'Type: Found' : 'Found'} 
+                value="Found" 
+              />
+            </Picker>
+          </View>
+        </View>
+      </View>
+
       <FlatList
-        data={posts}
+        data={filteredPosts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         numColumns={2}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.row}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>
+                No posts found matching the selected filters.
+              </Text>
+            </View>
+          </View>
+        }
       />
 
       {editingPost && (
@@ -330,6 +418,33 @@ const pickEditImage = async () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  
+  // Navigation bar style filters
+  filterNavBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  filterNavItem: {
+    marginRight: 12,
+  },
+  filterNavDropdown: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    overflow: 'hidden',
+    minWidth: 140,
+  },
+  navPicker: {
+    height: 40,
+    color: '#333',
+    backgroundColor: 'transparent',
+  },
+
   listContent: { padding: 8 },
   row: { justifyContent: 'space-between' },
   cardContainer: { width: '48%', marginBottom: 16 },
@@ -410,5 +525,7 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 6,
     fontStyle: 'italic',
-  }
+  },
+  dropdownContainer: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, overflow: 'hidden' },
+  dropdown: { height: 50 },
 });
