@@ -29,7 +29,7 @@ type Post = {
 
 interface PostsGridProps {
   posts: Post[];
-  onEdit: (id: string, title: string, content: string) => void;
+  onEdit: (id: string, updatedPost: Partial<Post>) => void;
   onDelete: (id: string) => void;
 }
 
@@ -70,14 +70,15 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
       editTitle.trim() &&
       editContent.trim()
     ) {
-      onEdit(editingPost.id, {
-        ...editingPost,
+      const updatedPost = {
         title: editTitle,
         content: editContent,
         imageUri: editImageUri || editingPost.imageUri,
         type: editingPost.type,
         category: editingPost.category,
-      });
+      };
+
+      onEdit(editingPost.id, updatedPost);
 
       setEditingPost(null);
       setEditTitle('');
@@ -266,13 +267,23 @@ const pickEditImage = async () => {
         }
       />
 
-      {editingPost && (
-        <View style={styles.modalOverlay}>
+      {/* Edit Modal */}
+      <Modal
+        visible={!!editingPost}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingPost(null)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setEditingPost(null)}
+          activeOpacity={1}
+        >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}
+            style={{ justifyContent: 'center', alignItems: 'center', width: '100%' }}
           >
-            <View style={styles.modalContent}>
+            <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
               <ScrollView>
                 <Text style={styles.modalTitle}>Edit Post</Text>
                 <Text style={styles.modalDescription}>Make changes to your post.</Text>
@@ -305,7 +316,7 @@ const pickEditImage = async () => {
                   <Text style={styles.label}>Type</Text>
                   <View style={styles.dropdownContainer}>
                     <Picker
-                      selectedValue={editingPost.type || 'Lost'}
+                      selectedValue={editingPost?.type || 'Lost'}
                       onValueChange={(value) =>
                         setEditingPost((prev) => (prev ? { ...prev, type: value } : prev))
                       }
@@ -322,7 +333,7 @@ const pickEditImage = async () => {
                   <Text style={styles.label}>Category</Text>
                   <View style={styles.dropdownContainer}>
                     <Picker
-                      selectedValue={editingPost.category || 'Other'}
+                      selectedValue={editingPost?.category || 'Other'}
                       onValueChange={(value) =>
                         setEditingPost((prev) => (prev ? { ...prev, category: value } : prev))
                       }
@@ -338,7 +349,7 @@ const pickEditImage = async () => {
                 </View>
 
                 {/* Image Preview */}
-                {editingPost.imageUri ? (
+                {editingPost?.imageUri ? (
                   <Image
                     source={{ uri: editingPost.imageUri }}
                     style={{
@@ -374,10 +385,10 @@ const pickEditImage = async () => {
                   </Button>
                 </View>
               </ScrollView>
-            </View>
+            </Pressable>
           </KeyboardAvoidingView>
-        </View>
-      )}
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={deleteDialogVisible}

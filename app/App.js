@@ -59,17 +59,13 @@ export default function App() {
   setModalVisible(false);
   };
 
-  const handleEditPost = (id, updatedData) => {
+  const handleEditPost = (id, updatedPost) => {
     setPosts((prev) =>
       prev.map((post) =>
         post.id === id
           ? {
               ...post,
-              title: updatedData.title,
-              content: updatedData.content,
-              imageUri: updatedData.imageUri,
-              type: updatedData.type,
-              category: updatedData.category,
+              ...updatedPost,
             }
           : post
       )
