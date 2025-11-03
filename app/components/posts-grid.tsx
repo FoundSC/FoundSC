@@ -15,6 +15,7 @@ import { Card, Button, Dialog, IconButton } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { Calendar } from 'react-native-calendars';
 
 
 type Post = {
@@ -50,12 +51,34 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all'); // Add this state
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
 
   // Filter posts by selected category and type
   const filteredPosts = posts.filter((post) => {
     const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
     const matchesType = selectedType === 'all' || post.type === selectedType;
-    return matchesCategory && matchesType;
+    
+    // Date filtering with specific date range
+    let matchesDate = true;
+    if (selectedStartDate) {
+      const postDate = new Date(post.createdAt);
+      const startDate = new Date(selectedStartDate);
+      
+      if (selectedEndDate) {
+        const endDate = new Date(selectedEndDate);
+        endDate.setHours(23, 59, 59, 999); // Include full end date
+        matchesDate = postDate >= startDate && postDate <= endDate;
+      } else {
+        // Single date selected
+        const startDateEnd = new Date(selectedStartDate);
+        startDateEnd.setHours(23, 59, 59, 999);
+        matchesDate = postDate >= startDate && postDate <= startDateEnd;
+      }
+    }
+    
+    return matchesCategory && matchesType && matchesDate;
   });
 
   const handleEditClick = (post: Post) => {
@@ -247,7 +270,108 @@ const pickEditImage = async () => {
             </Picker>
           </View>
         </View>
+
+        {/* Date Filter - Calendar Button */}
+        <View style={styles.filterNavItem}>
+          <Pressable
+            style={styles.calendarButton}
+            onPress={() => setShowCalendar(true)}
+          >
+            <Text style={styles.calendarButtonText}>
+              {selectedStartDate
+                ? selectedEndDate
+                  ? `${formatDate(selectedStartDate)} - ${formatDate(selectedEndDate)}`
+                  : formatDate(selectedStartDate)
+                : 'Select Date'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowCalendar(false)}
+          activeOpacity={1}
+        >
+          <Pressable style={styles.calendarCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.calendarTitle}>Select Date Range</Text>
+            <Text style={styles.calendarSubtitle}>
+              Tap a date to start, tap another to set range
+            </Text>
+            
+            <Calendar
+              onDayPress={(day) => {
+                if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+                  // Start new selection
+                  setSelectedStartDate(day.dateString);
+                  setSelectedEndDate(null);
+                } else {
+                  // Complete the range
+                  const start = new Date(selectedStartDate);
+                  const end = new Date(day.dateString);
+                  
+                  if (end >= start) {
+                    setSelectedEndDate(day.dateString);
+                  } else {
+                    // Swap if user selected earlier date
+                    setSelectedEndDate(selectedStartDate);
+                    setSelectedStartDate(day.dateString);
+                  }
+                }
+              }}
+              markedDates={{
+                ...(selectedStartDate && {
+                  [selectedStartDate]: {
+                    selected: true,
+                    startingDay: true,
+                    color: '#0ea5a4',
+                    textColor: 'white',
+                  },
+                }),
+                ...(selectedEndDate && {
+                  [selectedEndDate]: {
+                    selected: true,
+                    endingDay: true,
+                    color: '#0ea5a4',
+                    textColor: 'white',
+                  },
+                }),
+              }}
+              markingType={'period'}
+              theme={{
+                selectedDayBackgroundColor: '#0ea5a4',
+                todayTextColor: '#0ea5a4',
+                arrowColor: '#0ea5a4',
+              }}
+            />
+
+            <View style={styles.calendarActions}>
+              <Pressable
+                style={[styles.dialogBtn, styles.dialogBtnCancel]}
+                onPress={() => {
+                  setSelectedStartDate(null);
+                  setSelectedEndDate(null);
+                }}
+              >
+                <Text style={styles.dialogBtnCancelText}>Clear</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.dialogBtn, { backgroundColor: '#0ea5a4' }]}
+                onPress={() => setShowCalendar(false)}
+              >
+                <Text style={styles.dialogBtnDeleteText}>Apply</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <FlatList
         data={filteredPosts}
@@ -539,4 +663,72 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, overflow: 'hidden' },
   dropdown: { height: 50 },
+  calendarContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    elevation: 2,
+  },
+  calendar: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  dateFilterButton: {
+    borderWidth: 1,
+    borderColor: '#007bff',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 120,
+  },
+    calendarButton: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    justifyContent: 'center',
+    minWidth: 140,
+  },
+  calendarButtonText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  calendarCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  calendarSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+  },
+  calendarActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
 });
+
+// Helper function to format date from YYYY-MM-DD to MM/DD/YYYY
+const formatDate = (dateString: string) => {
+  const [year, month, day] = dateString.split('-');
+  return `${month}/${day}/${year}`;
+};
