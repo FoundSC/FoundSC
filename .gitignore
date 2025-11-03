@@ -79,3 +79,5 @@ Desktop.ini
 # Build outputs
 build/
 dist/
+ios/
+android/

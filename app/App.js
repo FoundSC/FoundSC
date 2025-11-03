@@ -115,15 +115,37 @@ export default function App() {
       const contentType = guessMimeFromUri(uri);
       console.log('[upload] buffer built', { bytes: bytes.byteLength, contentType });
 
-      const { error } = await supabase.storage
-        .from('post-images')
-        .upload(fileName, bytes, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType,
-        });
-      if (error) {
-        console.error('[upload] supabase upload error via blob:', error.message || error);
+      const maxAttempts = 3;
+      let lastError = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const { error } = await supabase.storage
+          .from('post-images')
+          .upload(fileName, bytes, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType,
+          });
+        if (!error) {
+          lastError = null;
+          break;
+        }
+        lastError = error;
+        const status = (error && (error.statusCode || error.status)) || 'n/a';
+        console.warn(
+          `[upload] attempt ${attempt}/${maxAttempts} failed:`,
+          typeof error === 'string' ? error : (error.message || JSON.stringify(error)),
+          'status:',
+          status
+        );
+        const retryable = String(error?.message || '').includes('Internal Server Error') || (status >= 500 && status < 600);
+        if (attempt < maxAttempts && retryable) {
+          await new Promise((r) => setTimeout(r, 300 * attempt));
+          continue;
+        }
+        break;
+      }
+      if (lastError) {
+        console.error('[upload] supabase upload error via blob:', lastError?.message || lastError);
         return null;
       }
 
