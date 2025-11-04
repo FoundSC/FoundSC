@@ -1,4 +1,5 @@
 import 'react-native-url-polyfill/auto';
+
 import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
@@ -10,21 +11,20 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+
 import { Provider as PaperProvider, Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 
 import { createClient } from '@supabase/supabase-js';
-
 import Header from './components/header';
 import CTA from './components/cta';
 import { AddPostButton } from './components/add-post-button';
 import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
-
-const supabaseUrl = 'https://jvxyoybuwxtpzsvzevbp.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eHlveWJ1d3h0cHpzdnpldmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1Mzc4NzEsImV4cCI6MjA3NjExMzg3MX0.Bkk6ef-W7yVlhBnWwSkG7qolmmEW9LSBy6cGZPNAMzA'; // Replace with your Supabase anon key
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function App() {
