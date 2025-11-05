@@ -113,7 +113,7 @@ export default function App() {
           <Hero />
           <Features />
 
-          {/* ✅ SEARCH BAR */}
+          { /* SEARCH BAR */ }
           <TextInput
             style={styles.searchInput}
             placeholder="Search by title, item, or category..."
@@ -125,7 +125,7 @@ export default function App() {
             <AddPostButton onAddPost={() => setModalVisible(true)} />
           </View>
 
-          {/* ➕ CREATE POST MODAL */}
+          {/* CREATE POST MODAL */}
           <Modal visible={modalVisible} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -166,7 +166,7 @@ export default function App() {
                   </Picker>
                 </View>
 
-                {/* ✅ Image Picker */}
+                {/* Image Picker */}
                 <View style={{ alignItems: 'center', marginVertical: 10 }}>
                   {image ? (
                     <>
@@ -203,7 +203,7 @@ export default function App() {
             </View>
           </Modal>
 
-          {/* ✅ POSTS GRID */}
+          {/* POSTS GRID */}
           <View style={styles.postsSection}>
             <PostsGrid
               posts={filteredPosts}
