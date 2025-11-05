@@ -21,19 +21,22 @@ import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
 
-
 export default function App() {
+  // POSTS
   const [posts, setPosts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // FORM
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
   const [newType, setNewType] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [image, setImage] = useState(null);
 
-  const[image, setImage] = useState(null);
+  // SEARCH
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Add a new post
+  // ADD POST
   const handleAddPost = (title, content, type, category) => {
     if (!title.trim() || !content.trim()) {
       alert('Title and content are required');
@@ -49,34 +52,33 @@ export default function App() {
       imageUri: image?.uri || null,
       createdAt: new Date(),
     };
+
     setPosts((prev) => [newPost, ...prev]);
 
-  // reset fields
-  setNewTitle('');
-  setNewContent('');
-  setNewType('');
-  setNewCategory('');
-  setModalVisible(false);
+    // reset
+    setNewTitle('');
+    setNewContent('');
+    setNewType('');
+    setNewCategory('');
+    setImage(null);
+    setModalVisible(false);
   };
 
+  // EDIT POST
   const handleEditPost = (id, updatedPost) => {
     setPosts((prev) =>
       prev.map((post) =>
-        post.id === id
-          ? {
-              ...post,
-              ...updatedPost,
-            }
-          : post
+        post.id === id ? { ...post, ...updatedPost } : post
       )
     );
   };
 
+  // DELETE POST
   const handleDeletePost = (id) => {
     setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
-
+  // PICK IMAGE
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -87,14 +89,20 @@ export default function App() {
 
     if (!result.canceled) {
       const file = result.assets[0];
-      // optional: size check if available
       if (file.fileSize && file.fileSize > 5 * 1024 * 1024) {
-        alert('Image too large. Please select one under 5MB.');
+        alert('Image too large (max 5MB)');
         return;
       }
       setImage(file);
     }
   };
+
+  // FILTER POSTS BY SEARCH
+  const filteredPosts = posts.filter((p) =>
+    (p.title + p.content + (p.category || '') + (p.type || ''))
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
   return (
     <PaperProvider>
@@ -103,16 +111,21 @@ export default function App() {
           <Header />
           <CTA />
           <Hero />
-
-          {/* Features Section */}
           <Features />
+
+          {/* ✅ SEARCH BAR */}
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by title, item, or category..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
 
           <View style={styles.section}>
             <AddPostButton onAddPost={() => setModalVisible(true)} />
           </View>
 
-
-          {/* Add Post Modal */}
+          {/* ➕ CREATE POST MODAL */}
           <Modal visible={modalVisible} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -132,23 +145,18 @@ export default function App() {
                   multiline
                 />
 
-                {/* Type Picker */}
                 <View style={styles.pickerWrapper}>
                   <Text style={styles.pickerLabel}>Type</Text>
-                  <Picker selectedValue={newType} onValueChange={(v) => setNewType(v)}>
+                  <Picker selectedValue={newType} onValueChange={setNewType}>
                     <Picker.Item label="Select Type" value="" />
                     <Picker.Item label="Lost" value="Lost" />
                     <Picker.Item label="Found" value="Found" />
                   </Picker>
                 </View>
 
-                {/* Category Picker */}
                 <View style={styles.pickerWrapper}>
                   <Text style={styles.pickerLabel}>Category</Text>
-                  <Picker
-                    selectedValue={newCategory}
-                    onValueChange={(v) => setNewCategory(v)}
-                  >
+                  <Picker selectedValue={newCategory} onValueChange={setNewCategory}>
                     <Picker.Item label="Select Category" value="" />
                     <Picker.Item label="Electronics" value="Electronics" />
                     <Picker.Item label="Pets" value="Pets" />
@@ -158,7 +166,7 @@ export default function App() {
                   </Picker>
                 </View>
 
-                {/* Image Picker */}
+                {/* ✅ Image Picker */}
                 <View style={{ alignItems: 'center', marginVertical: 10 }}>
                   {image ? (
                     <>
@@ -166,41 +174,26 @@ export default function App() {
                         source={{ uri: image.uri }}
                         style={{ width: 120, height: 120, borderRadius: 10 }}
                       />
-                      <Button
-                        mode="outlined"
-                        style={{ marginTop: 8 }}
-                        onPress={() => setImage(null)}
-                      >
+                      <Button mode="outlined" style={{ marginTop: 8 }} onPress={() => setImage(null)}>
                         Remove Image
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      icon="plus"
-                      mode="outlined"
-                      onPress={pickImage}
-                      style={styles.addImageButton}
-                    >
+                    <Button icon="plus" mode="outlined" onPress={pickImage}>
                       Add Image
                     </Button>
                   )}
                 </View>
 
-                {/* Buttons */}
                 <View style={styles.buttonRow}>
-                  <Button
-                    mode="outlined"
-                    onPress={() => setModalVisible(false)}
-                    style={styles.button}
-                  >
+                  <Button mode="outlined" onPress={() => setModalVisible(false)} style={styles.button}>
                     Cancel
                   </Button>
                   <Button
                     mode="contained"
-                    onPress={() => {
-                      handleAddPost(newTitle, newContent, newType, newCategory);
-                      setImage(null);
-                    }}
+                    onPress={() =>
+                      handleAddPost(newTitle, newContent, newType, newCategory)
+                    }
                     style={styles.button}
                   >
                     Add Post
@@ -210,11 +203,10 @@ export default function App() {
             </View>
           </Modal>
 
-
-          {/* Posts Grid */}
+          {/* ✅ POSTS GRID */}
           <View style={styles.postsSection}>
             <PostsGrid
-              posts={posts}
+              posts={filteredPosts}
               onEdit={handleEditPost}
               onDelete={handleDeletePost}
             />
@@ -226,73 +218,34 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  content: {
-    padding: 16,
-  },
-  section: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  postsSection: {
-    flex: 1,
-    marginTop: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    width: '90%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  input: {
+  searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#00B3B3',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 15,
+    marginTop: 5,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  content: { padding: 16 },
+  section: { alignItems: 'center', marginVertical: 20 },
+  postsSection: { flex: 1, marginTop: 10 },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modalContent: {
+    backgroundColor: '#fff', borderRadius: 10,
+    padding: 20, width: '90%',
   },
-  button: {
-    flex: 1,
-    marginHorizontal: 4,
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  input: {
+    borderWidth: 1, borderColor: '#ccc',
+    borderRadius: 8, padding: 10, marginBottom: 12,
   },
-  addImageButton: {
-    borderColor: '#00B3B3',
-    borderWidth: 1.5,
-    marginTop: 6,
-  },
-  pickerWrapper: {
-    marginBottom: 10,
-  },
-  pickerLabel: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  pickerBox: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-  }
-
+  textArea: { height: 100, textAlignVertical: 'top' },
+  buttonRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  button: { flex: 1, marginHorizontal: 4 },
+  pickerWrapper: { marginBottom: 10 },
+  pickerLabel: { fontWeight: 'bold', marginBottom: 4 },
 });
