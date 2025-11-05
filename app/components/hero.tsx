@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Button } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/Ionicons'; 
+import { Ionicons } from '@expo/vector-icons'; 
 
 
 export function Hero() {
@@ -32,9 +32,9 @@ export function Hero() {
           mode="contained"
           style={styles.button}
           onPress={() => console.log('Start Searching')}
+          icon={() => <Ionicons name="arrow-forward" size={16} color="white" />}
         >
           Start Searching
-          <Icon name="arrow-forward" size={16} style={styles.buttonIcon} />
         </Button>
 
         <Button
@@ -111,9 +111,6 @@ const styles = StyleSheet.create({
   },
   button: {
     marginHorizontal: 8,
-  },
-  buttonIcon: {
-    marginLeft: 6,
   },
   footer: {
     flexDirection: 'row',

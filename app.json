@@ -1,5 +1,24 @@
 {
-  "ios": {
-    "bundleIdentifier": "com.anonymous.my-v0-project"
+  "expo": {
+    "name": "FoundSC",
+    "slug": "foundsc",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "foundsc",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "bundleIdentifier": "com.anonymous.foundsc",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.anonymous.foundsc",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
   }
 }
