@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 
-import { Provider as PaperProvider, Button } from 'react-native-paper';
+import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
  
@@ -23,7 +23,7 @@ import { AddPostButton } from './components/add-post-button';
 import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
-import { Picker } from '@react-native-picker/picker';
+// Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 registerTranslation('en', en);
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -47,6 +47,8 @@ export default function App() {
   const [startDate, setStartDate] = useState(''); // YYYY-MM-DD
   const [endDate, setEndDate] = useState(''); // YYYY-MM-DD
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
+  const [typeMenuVisible, setTypeMenuVisible] = useState(false);
 
   const CATEGORIES = [
     'Electronics',
@@ -350,31 +352,49 @@ export default function App() {
 
           {/* Filters */}
           <View style={styles.filtersRow}>
-            <View style={[styles.dropdownContainer, { flex: 1 }]}> 
-              <Picker
-                selectedValue={filterCategory}
-                onValueChange={(v) => setFilterCategory(v)}
-                style={styles.dropdown}
+            <View style={{ flex: 1 }}>
+              <Menu
+                visible={categoryMenuVisible}
+                onDismiss={() => setCategoryMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    onPress={() => setCategoryMenuVisible(true)}
+                    icon="chevron-down"
+                  >
+                    {filterCategory === 'All' ? 'Category: All' : filterCategory}
+                  </Button>
+                }
+                contentStyle={{ backgroundColor: '#fff' }}
               >
-                <Picker.Item label="Category: All" value="All" />
-                <Picker.Item label="Electronics" value="Electronics" />
-                <Picker.Item label="Pets" value="Pets" />
-                <Picker.Item label="Accessories" value="Accessories" />
-                <Picker.Item label="Clothing" value="Clothing" />
-                <Picker.Item label="Other" value="Other" />
-              </Picker>
+                <Menu.Item onPress={() => { setFilterCategory('All'); setCategoryMenuVisible(false); }} title="Category: All" />
+                <Menu.Item onPress={() => { setFilterCategory('Electronics'); setCategoryMenuVisible(false); }} title="Electronics" />
+                <Menu.Item onPress={() => { setFilterCategory('Pets'); setCategoryMenuVisible(false); }} title="Pets" />
+                <Menu.Item onPress={() => { setFilterCategory('Accessories'); setCategoryMenuVisible(false); }} title="Accessories" />
+                <Menu.Item onPress={() => { setFilterCategory('Clothing'); setCategoryMenuVisible(false); }} title="Clothing" />
+                <Menu.Item onPress={() => { setFilterCategory('Other'); setCategoryMenuVisible(false); }} title="Other" />
+              </Menu>
             </View>
             <View style={{ width: 8 }} />
-            <View style={[styles.dropdownContainer, { flex: 1 }]}> 
-              <Picker
-                selectedValue={filterType}
-                onValueChange={(v) => setFilterType(v)}
-                style={styles.dropdown}
+            <View style={{ flex: 1 }}>
+              <Menu
+                visible={typeMenuVisible}
+                onDismiss={() => setTypeMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    onPress={() => setTypeMenuVisible(true)}
+                    icon="chevron-down"
+                  >
+                    {filterType === 'All' ? 'Type: All' : (filterType === 'lost' ? 'Lost' : 'Found')}
+                  </Button>
+                }
+                contentStyle={{ backgroundColor: '#fff' }}
               >
-                <Picker.Item label="Type: All" value="All" />
-                <Picker.Item label="Lost" value="lost" />
-                <Picker.Item label="Found" value="found" />
-              </Picker>
+                <Menu.Item onPress={() => { setFilterType('All'); setTypeMenuVisible(false); }} title="Type: All" />
+                <Menu.Item onPress={() => { setFilterType('lost'); setTypeMenuVisible(false); }} title="Lost" />
+                <Menu.Item onPress={() => { setFilterType('found'); setTypeMenuVisible(false); }} title="Found" />
+              </Menu>
             </View>
           </View>
 
@@ -597,7 +617,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    overflow: 'hidden',
+    backgroundColor: '#fff',
+    // Important for Android dropdown and iOS popover layering
+    zIndex: 10,
+    elevation: 2,
   },
   dropdown: {
     width: '100%',
