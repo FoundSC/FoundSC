@@ -15,7 +15,7 @@ import {
 import { Provider as PaperProvider, Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
-
+ 
 import { createClient } from '@supabase/supabase-js';
 import Header from './components/header';
 import CTA from './components/cta';
@@ -23,6 +23,9 @@ import { AddPostButton } from './components/add-post-button';
 import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
+import { Picker } from '@react-native-picker/picker';
+import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
+registerTranslation('en', en);
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -37,6 +40,14 @@ export default function App() {
   const [newCategory, setNewCategory] = useState('');
   const [newImageUri, setNewImageUri] = useState(null);
 
+  // Search & filter state
+  const [searchText, setSearchText] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterType, setFilterType] = useState('All');
+  const [startDate, setStartDate] = useState(''); // YYYY-MM-DD
+  const [endDate, setEndDate] = useState(''); // YYYY-MM-DD
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
   const CATEGORIES = [
     'Electronics',
     'Pets',
@@ -45,11 +56,37 @@ export default function App() {
     'Other',
   ];
 
-  
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
+  const fetchPosts = async (filters = {}) => {
+    let query = supabase
       .from('posts')
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (filters.type && filters.type !== 'All') {
+      query = query.eq('type', String(filters.type).toLowerCase());
+    }
+    if (filters.category && filters.category !== 'All') {
+      query = query.eq('category', filters.category);
+    }
+    if (filters.search && filters.search.trim()) {
+      const term = filters.search.trim();
+      // Search title, description, and category
+      query = query.or(
+        `title.ilike.%${term}%,description.ilike.%${term}%,category.ilike.%${term}%`
+      );
+    }
+    // Date range on created_at
+    if (filters.startDate) {
+      const s = new Date(filters.startDate + 'T00:00:00Z').toISOString();
+      query = query.gte('created_at', s);
+    }
+    if (filters.endDate) {
+      // include entire end day by setting to 23:59:59Z
+      const e = new Date(filters.endDate + 'T23:59:59Z').toISOString();
+      query = query.lte('created_at', e);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching posts:', error);
@@ -261,8 +298,35 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchPosts(); 
+    fetchPosts();
   }, []);
+
+  // Debounced search/filtering
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetchPosts({
+        search: searchText,
+        category: filterCategory,
+        type: filterType,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchText, filterCategory, filterType, startDate, endDate]);
+
+  const onConfirmDateRange = ({ startDate: s, endDate: e }) => {
+    const fmt = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+    setStartDate(fmt(s));
+    setEndDate(fmt(e));
+    setDatePickerOpen(false);
+  };
+
+  const onClearDateRange = () => {
+    setStartDate('');
+    setEndDate('');
+    setDatePickerOpen(false);
+  };
 
   return (
     <PaperProvider>
@@ -272,6 +336,78 @@ export default function App() {
           <CTA />
           <Hero />
           <Features />
+          {/* Search Bar */}
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by title, item, or category..."
+              value={searchText}
+              onChangeText={setSearchText}
+              autoCapitalize="none"
+              returnKeyType="search"
+            />
+          </View>
+
+          {/* Filters */}
+          <View style={styles.filtersRow}>
+            <View style={[styles.dropdownContainer, { flex: 1 }]}> 
+              <Picker
+                selectedValue={filterCategory}
+                onValueChange={(v) => setFilterCategory(v)}
+                style={styles.dropdown}
+              >
+                <Picker.Item label="Category: All" value="All" />
+                <Picker.Item label="Electronics" value="Electronics" />
+                <Picker.Item label="Pets" value="Pets" />
+                <Picker.Item label="Accessories" value="Accessories" />
+                <Picker.Item label="Clothing" value="Clothing" />
+                <Picker.Item label="Other" value="Other" />
+              </Picker>
+            </View>
+            <View style={{ width: 8 }} />
+            <View style={[styles.dropdownContainer, { flex: 1 }]}> 
+              <Picker
+                selectedValue={filterType}
+                onValueChange={(v) => setFilterType(v)}
+                style={styles.dropdown}
+              >
+                <Picker.Item label="Type: All" value="All" />
+                <Picker.Item label="Lost" value="lost" />
+                <Picker.Item label="Found" value="found" />
+              </Picker>
+            </View>
+          </View>
+
+          {/* Date range selector */}
+          <View style={styles.datesRow}>
+            <Button
+              mode="outlined"
+              onPress={() => setDatePickerOpen(true)}
+            >
+              {startDate && endDate
+                ? `${startDate} → ${endDate}`
+                : 'Select Date'}
+            </Button>
+            <View style={{ width: 8 }} />
+            {(startDate || endDate) ? (
+              <Button mode="text" onPress={onClearDateRange}>Clear</Button>
+            ) : null}
+          </View>
+
+          <DatePickerModal
+            locale="en"
+            mode="range"
+            visible={datePickerOpen}
+            onDismiss={() => setDatePickerOpen(false)}
+            startDate={startDate ? new Date(startDate) : undefined}
+            endDate={endDate ? new Date(endDate) : undefined}
+            onConfirm={onConfirmDateRange}
+            saveLabel="Apply"
+            closeIcon="close"
+            startLabel="From"
+            endLabel="To"
+          />
+
           <View style={styles.section}>
             <AddPostButton onAddPost={() => setModalVisible(true)} />
           </View>
@@ -421,6 +557,18 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
+  searchBarContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    height: 44,
+    backgroundColor: '#fff',
+  },
   section: {
     alignItems: 'center',
     marginVertical: 20,
@@ -428,6 +576,22 @@ const styles = StyleSheet.create({
   postsSection: {
     flex: 1,
     marginTop: 10,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  datesRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+    marginLeft: 4,
   },
   dropdownContainer: {
     borderWidth: 1,
