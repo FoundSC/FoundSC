@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+// Header component displaying app name and tagline
 export default function Header() {
   return (
     <View style={styles.container}>
@@ -10,6 +11,7 @@ export default function Header() {
   );
 }
 
+// Styles for the Header component
 const styles = StyleSheet.create({
   container: {
     width: '100%',

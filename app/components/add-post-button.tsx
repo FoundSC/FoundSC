@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { Button } from 'react-native-paper';
 
+// Adds a button with a "+" icon and "Add Post" label
 export function AddPostButton({ onAddPost }) {
   return (
     <Button
@@ -17,6 +18,7 @@ export function AddPostButton({ onAddPost }) {
   );
 }
 
+// Styles for the AddPostButton component
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#00B3B3', // teal color
