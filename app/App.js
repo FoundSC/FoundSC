@@ -6,13 +6,12 @@ import {
   StyleSheet,
   ScrollView,
   View,
-  Modal,
   Text,
   TextInput,
   Platform,
 } from 'react-native';
 
-import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
+import { Provider as PaperProvider, Button, Menu, Modal as PaperModal, Portal } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
  
@@ -26,6 +25,8 @@ import { Hero } from './components/hero';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 registerTranslation('en', en);
+import MapPickerModal from './map-picker-modal';
+import MapScreen from './map-screen';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -49,6 +50,9 @@ export default function App() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [pickedLocation, setPickedLocation] = useState(null);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const CATEGORIES = [
     'Electronics',
@@ -230,6 +234,8 @@ export default function App() {
       type: safeType,
       category: safeCategory,
       image_url: uploadedUrl || null,
+      location_lat: pickedLocation?.lat ?? null,
+      location_lng: pickedLocation?.lng ?? null,
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
@@ -338,6 +344,11 @@ export default function App() {
           <CTA />
           <Hero />
           <Features />
+          <View style={styles.section}>
+            <Button mode="contained" onPress={() => setMapOpen(true)}>
+              View Lost Items on Map
+            </Button>
+          </View>
           {/* Search Bar */}
           <View style={styles.searchBarContainer}>
             <TextInput
@@ -439,16 +450,14 @@ export default function App() {
             />
           </View>
 
-          {/* Add Post Modal */}
-          <Modal
-            visible={modalVisible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <ScrollView>
+          {/* Add Post Modal (react-native-paper) */}
+          <Portal>
+            <PaperModal
+              visible={modalVisible}
+              onDismiss={() => setModalVisible(false)}
+              contentContainerStyle={styles.paperModalContainer}
+            >
+              <ScrollView>
                   <Text style={styles.modalTitle}>Create New Post</Text>
                   <Text style={styles.modalDescription}>
                     Add a new post to your feed.
@@ -520,6 +529,12 @@ export default function App() {
                     </Button>
                   </View>
 
+                  <View style={[styles.imageRow, { marginTop: 0 }]}> 
+                    <Button mode="outlined" onPress={() => { setModalVisible(false); setMapPickerOpen(true); }} style={styles.addImageBtn}>
+                      Set Location on Map
+                    </Button>
+                  </View>
+
                   <View style={styles.modalActions}>
                     <Button
                       mode="outlined"
@@ -560,9 +575,23 @@ export default function App() {
                     </Button>
                   </View>
                 </ScrollView>
-              </View>
-            </View>
-          </Modal>
+            </PaperModal>
+          </Portal>
+          <MapPickerModal
+            visible={mapPickerOpen}
+            onDismiss={() => { setMapPickerOpen(false); setModalVisible(true); }}
+            onPick={(pos) => { setPickedLocation(pos); setMapPickerOpen(false); setModalVisible(true); }}
+          />
+
+          <Portal>
+            <PaperModal
+              visible={mapOpen}
+              onDismiss={() => setMapOpen(false)}
+              contentContainerStyle={styles.fullScreenModal}
+            >
+              <MapScreen onClose={() => setMapOpen(false)} />
+            </PaperModal>
+          </Portal>
         </ScrollView>
       </SafeAreaView>
     </PaperProvider>
@@ -639,6 +668,18 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '90%',
     maxHeight: '80%',
+  },
+  paperModalContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    marginHorizontal: '5%',
+    maxHeight: '85%',
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: '#fff',
+    height: '100%',
   },
   modalTitle: {
     fontSize: 20,

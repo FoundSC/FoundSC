@@ -24,3 +24,4 @@ WITH CHECK (
 CREATE POLICY "Anyone can delete images"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'post-images');
+
