@@ -24,6 +24,8 @@ type Post = {
   category?: string;
   imageUri?: string;
   image_url?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 interface PostsGridProps {
@@ -170,7 +172,17 @@ const pickEditImage = async () => {
           </Text>
           <Text style={styles.meta}>Type: {item.type || '-'}</Text>
           <Text style={styles.meta}>Category: {item.category || '-'}</Text>
-          
+          {item.latitude && item.longitude ? (
+            <View style={styles.locationContainer}>
+              <Text style={styles.locationIcon}>📍</Text>
+              <Text style={styles.locationText}>
+                {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.meta}>Location: Not set</Text>
+          )}
+
         </Card.Content>
       </Card>
     </View>
@@ -369,5 +381,24 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 6,
     fontStyle: 'italic',
-  }
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    backgroundColor: '#f0f9ff',
+    padding: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  locationIcon: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  locationText: {
+    fontSize: 11,
+    color: '#1e40af',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
 });

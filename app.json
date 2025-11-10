@@ -7,14 +7,38 @@
     "scheme": "foundsc",
     "userInterfaceStyle": "automatic",
     "platforms": ["ios", "android", "web"],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow FoundSC to use your location to tag found items on the map.",
+          "locationWhenInUsePermission": "Allow FoundSC to use your location to tag found items on the map."
+        }
+      ]
+    ],
     "ios": {
       "bundleIdentifier": "com.anonymous.foundsc",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Allow FoundSC to use your location to tag found items on the map."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyBkf5TMAuMwczck0TcQgtNohVpJkDEf6js"
+      }
     },
     "android": {
       "package": "com.anonymous.foundsc",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBkf5TMAuMwczck0TcQgtNohVpJkDEf6js"
+        }
       }
     },
     "web": {

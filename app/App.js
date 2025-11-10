@@ -23,6 +23,8 @@ import { AddPostButton } from './components/add-post-button';
 import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
+import PostsMapView from './components/map-view';
+import LocationPicker from './components/location-picker';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 registerTranslation('en', en);
@@ -39,6 +41,11 @@ export default function App() {
   const [newType, setNewType] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newImageUri, setNewImageUri] = useState(null);
+  const [newLatitude, setNewLatitude] = useState(null);
+  const [newLongitude, setNewLongitude] = useState(null);
+
+  // View mode state (grid or map)
+  const [viewMode, setViewMode] = useState('grid');
 
   // Search & filter state
   const [searchText, setSearchText] = useState('');
@@ -86,6 +93,18 @@ export default function App() {
       // include entire end day by setting to 23:59:59Z
       const e = new Date(filters.endDate + 'T23:59:59Z').toISOString();
       query = query.lte('created_at', e);
+    }
+
+    // Bounding box filter for map viewport queries
+    if (filters.bounds) {
+      const { north, south, east, west } = filters.bounds;
+      query = query
+        .gte('latitude', south)
+        .lte('latitude', north)
+        .gte('longitude', west)
+        .lte('longitude', east)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
     }
 
     const { data, error } = await query;
@@ -230,6 +249,8 @@ export default function App() {
       type: safeType,
       category: safeCategory,
       image_url: uploadedUrl || null,
+      latitude: newLatitude,
+      longitude: newLongitude,
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
@@ -431,12 +452,42 @@ export default function App() {
           <View style={styles.section}>
             <AddPostButton onAddPost={() => setModalVisible(true)} />
           </View>
+
+          {/* View Toggle */}
+          <View style={styles.viewToggleContainer}>
+            <Button
+              mode={viewMode === 'grid' ? 'contained' : 'outlined'}
+              onPress={() => setViewMode('grid')}
+              icon="view-grid"
+              style={styles.viewToggleBtn}
+            >
+              Grid View
+            </Button>
+            <Button
+              mode={viewMode === 'map' ? 'contained' : 'outlined'}
+              onPress={() => setViewMode('map')}
+              icon="map"
+              style={styles.viewToggleBtn}
+            >
+              Map View
+            </Button>
+          </View>
+
+          {/* Posts Display (Grid or Map) */}
           <View style={styles.postsSection}>
-            <PostsGrid
-              posts={posts}
-              onEdit={handleEditPost}
-              onDelete={handleDeletePost}
-            />
+            {viewMode === 'grid' ? (
+              <PostsGrid
+                posts={posts}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+              />
+            ) : (
+              <PostsMapView
+                posts={posts}
+                onBoundsChange={(bounds) => fetchPosts({ search: searchText, type: filterType, category: filterCategory, startDate, endDate, bounds })}
+                onRefresh={() => fetchPosts({ search: searchText, type: filterType, category: filterCategory, startDate, endDate })}
+              />
+            )}
           </View>
 
           {/* Add Post Modal */}
@@ -520,6 +571,16 @@ export default function App() {
                     </Button>
                   </View>
 
+                  {/* Location Picker */}
+                  <LocationPicker
+                    onLocationSelect={(lat, lng) => {
+                      setNewLatitude(lat);
+                      setNewLongitude(lng);
+                    }}
+                    initialLatitude={newLatitude}
+                    initialLongitude={newLongitude}
+                  />
+
                   <View style={styles.modalActions}>
                     <Button
                       mode="outlined"
@@ -530,6 +591,8 @@ export default function App() {
                         setNewType('');
                         setNewCategory('');
                         setNewImageUri(null);
+                        setNewLatitude(null);
+                        setNewLongitude(null);
                       }}
                       style={styles.cancelBtn}
                       textColor="#5b21b6"
@@ -547,6 +610,8 @@ export default function App() {
                         setNewType('');
                         setNewCategory('');
                         setNewImageUri(null);
+                        setNewLatitude(null);
+                        setNewLongitude(null);
                       }}
                       style={styles.submitBtn}
                       buttonColor="#6d28d9"
@@ -593,9 +658,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  postsSection: {
+  viewToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  viewToggleBtn: {
     flex: 1,
+  },
+  postsSection: {
     marginTop: 10,
+    minHeight: 500,
   },
   filtersRow: {
     flexDirection: 'row',
