@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 
 import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
@@ -26,11 +27,13 @@ import { Hero } from './components/hero';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 registerTranslation('en', en);
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Supabase client
+import { supabase } from './lib/supabase';
+import { useAuth } from './contexts/AuthContext'; // Add this import at the top
 
 export default function App() {
+  const { user } = useAuth(); // ✅ Add this at the top of component
   const [posts, setPosts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -200,6 +203,12 @@ export default function App() {
 
   // Add a new post
   const handleAddPost = async (title, description, type, category, image_url) => {
+    // ✅ Changed: use the user from top-level hook
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create a post');
+      return;
+    }
+
     const safeTitle = (title || '').trim();
     const safeDescription = (description || '').trim();
     const safeType = (type || '').toLowerCase().trim();
@@ -230,6 +239,7 @@ export default function App() {
       type: safeType,
       category: safeCategory,
       image_url: uploadedUrl || null,
+      user_id: user.id, // ✅ This now works because user is from top-level hook
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
