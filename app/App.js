@@ -296,18 +296,38 @@ export default function App() {
   };
 
   // Delete a post
-  const handleDeletePost = async (id) => {
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id);
+  const handleDeletePost = async (postId) => {
+  if (!user) {
+    Alert.alert('Error', 'You must be logged in to delete posts');
+    return;
+  }
 
-    if (error) {
-      console.error('Error deleting post:', error);
-    } else {
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-    }
-  };
+  // Check if the user owns the post
+  const { data: post } = await supabase
+    .from('posts')
+    .select('user_id')
+    .eq('id', postId)
+    .single();
+
+  if (post && post.user_id !== user.id) {
+    Alert.alert('Error', 'You can only delete your own posts');
+    return;
+  }
+
+  // delete logic
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId);
+
+  if (error) {
+    console.error('Error deleting post:', error);
+    Alert.alert('Error', 'Failed to delete post');
+  } else {
+    // Update UI
+    setPosts(posts.filter(post => post.id !== postId));
+  }
+};
 
   useEffect(() => {
     fetchPosts();

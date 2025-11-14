@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   View,
   Text,
@@ -25,6 +26,7 @@ type Post = {
   category?: string;
   imageUri?: string;
   image_url?: string;
+  user_id?: string; // Added user_id to match the database
 };
 
 // Define component props
@@ -146,6 +148,9 @@ const pickEditImage = async () => {
     console.error('[edit] picker error:', (e as any)?.message || e);
   }
 };
+  // Get current user
+  const { user } = useAuth();
+
   // Render individual post card
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.cardContainer}>
@@ -155,10 +160,12 @@ const pickEditImage = async () => {
             <Text style={styles.title} numberOfLines={2}>
               {item.title}
             </Text>
-            <View style={styles.actions}>
-              <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
-              <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
-            </View>
+            {user?.id === item.user_id && (
+              <View style={styles.actions}>
+                <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
+                <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
+              </View>
+            )}
           </View>
 
           <Text style={styles.date}>
