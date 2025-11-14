@@ -1,6 +1,83 @@
 # FoundSC - Lost & Found App
 
-A Lost & Found application built with Supabase for managing lost and found items on campus.
+Lost & Found mobile app built with Expo + React Native and Supabase. Includes posting lost/found items, map view, and push notifications for potential matches.
+
+## Quick Start
+
+- Install tools
+  - Node.js (LTS), npm
+  - Supabase CLI: `brew install supabase/tap/supabase` or `npm i -D supabase`
+  - Expo CLI (bundled via npx)
+
+- Environment variables (create `.env`)
+  - Required for the app:
+    - `EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co`
+    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>`
+
+- Install dependencies
+  - Base install: `npm install`
+  - Expo-native modules (SDK-compatible):
+    - `npx expo install expo-notifications expo-location react-native-maps @react-native-picker/picker expo-secure-store expo-constants`
+
+- Run the app
+  - Fast: `npx expo start -c` and open on a physical iPhone with Expo Go
+  - If using newer native modules or Android push: build a Dev Client
+    - `npx expo install expo-dev-client`
+    - `eas build -p ios --profile development` (or `npx expo run:ios`/`run:android`)
+
+## Supabase (Remote) Setup
+
+- Apply DB migrations
+  - `supabase db push`
+
+- Deploy Edge Function (dispatcher)
+  - `supabase functions deploy dispatch-notifications`
+  - Set function secrets in Dashboard → Functions → dispatch-notifications → Secrets
+    - `SUPABASE_URL = https://<your-project>.supabase.co`
+    - `SUPABASE_SERVICE_ROLE_KEY = <your service role key>`
+
+- Optional schedule (every minute)
+  - Dashboard → Functions → Schedules → New → Function: `dispatch-notifications`, Cron: `* * * * *`
+
+## Test Push Notifications
+
+1) Register a device token
+- Open the app on a physical iPhone and accept notifications.
+- Verify in SQL:
+  ```sql
+  select platform, token, last_seen from device_push_tokens order by last_seen desc limit 5;
+  ```
+
+2) Quick manual test (no trigger)
+- Pick a post id and insert a pending row:
+  ```sql
+  select id from posts order by created_at desc limit 1;
+  insert into notifications (post_id, device_token, message, status)
+  values (<POST_ID>, 'ExponentPushToken[XXXXXXXX...]', 'Hello from dispatcher test', 'pending');
+  ```
+- Invoke the dispatcher with your anon key:
+  ```bash
+  export SUPA_ANON="<paste-anon-key>"
+  curl -sS -X POST \
+    "https://<your-project>.functions.supabase.co/dispatch-notifications" \
+    -H "Authorization: Bearer $SUPA_ANON"
+  ```
+- Confirm status:
+  ```sql
+  select id, status, error, sent_at from notifications order by created_at desc limit 10;
+  ```
+
+3) Full matching flow (trigger)
+- Create a LOST post in the app; rules are auto-upserted from title/description.
+- Create a FOUND post with matching category/keywords.
+- Invoke dispatcher (same curl) and expect a push.
+
+## Troubleshooting
+
+- Invalid JWT from curl: the header token is empty/wrong. Paste the anon key or export it first.
+- No token row: ensure permission granted and `extra.eas.projectId` is present in config.
+- Android push in Expo Go is not supported; use a Dev Client.
+- Expo native versions: align with SDK using `npx expo install ...` or `npx expo doctor --fix-dependencies`.
 
 ## Features
 
