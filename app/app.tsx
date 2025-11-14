@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   SafeAreaView,
   StyleSheet,
@@ -13,6 +13,9 @@ import {
 } from 'react-native'
 import { PaperProvider, FAB, Button } from 'react-native-paper'
 import PostsGrid from './components/posts-grid'
+import * as Notifications from 'expo-notifications'
+import Constants from 'expo-constants'
+import { registerDevicePushToken } from './lib/notifications'
 
 export type Post = {
   id: string
@@ -26,6 +29,40 @@ export default function App() {
   const [addModalVisible, setAddModalVisible] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newContent, setNewContent] = useState('')
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      // Some type definitions require these additional fields
+      // They control iOS presentation behavior in Notification Center
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  })
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync()
+        let finalStatus = existingStatus
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync()
+          finalStatus = status
+        }
+        if (finalStatus !== 'granted') return
+
+        const projectId = (Constants as any)?.expoConfig?.extra?.eas?.projectId || (Constants as any)?.easConfig?.projectId
+        const tokenResult = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)
+        const token = (tokenResult as any)?.data
+        if (token) {
+          await registerDevicePushToken(token)
+        }
+      } catch (e) {
+      }
+    })()
+  }, [])
 
   const addPost = (title: string, content: string) => {
     if (title.trim() && content.trim()) {

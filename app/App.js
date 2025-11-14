@@ -16,7 +16,7 @@ import {
 import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
- 
+
 import { createClient } from '@supabase/supabase-js';
 import Header from './components/header';
 import CTA from './components/cta';
@@ -28,16 +28,30 @@ import PostsMapView from './components/map-view';
 import LocationPicker from './components/location-picker';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { registerDevicePushToken } from './lib/notifications';
+import AlertsModal from './components/alerts';
+import { setLostPostMatchRules } from './lib/notifications';
 registerTranslation('en', en);
 
 // Supabase client
 import { supabase } from './lib/supabase';
 import { useAuth } from './contexts/AuthContext'; // Add this import at the top
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
 export default function App() {
   const { user } = useAuth(); // ✅ Add this at the top of component
   const [posts, setPosts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [alertsVisible, setAlertsVisible] = useState(false);
 
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
@@ -220,6 +234,14 @@ export default function App() {
     }
   }
 
+  function extractKeywords(text) {
+    const stop = new Set(['the','and','for','with','that','this','you','your','from','near','lost','found','item','items','a','an','of','to','in','on','at','is','it']);
+    return String(text || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter((w) => w && w.length >= 3 && !stop.has(w));
+  }
+
   // Add a new post
   const handleAddPost = async (title, description, type, category, image_url) => {
     // ✅ Changed: use the user from top-level hook
@@ -272,6 +294,14 @@ export default function App() {
     if (data && data[0]) {
       setPosts((prev) => [data[0], ...prev]);
       setNewImageUri(null);
+      if (safeType === 'lost') {
+        try {
+          const kws = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);
+          await setLostPostMatchRules(data[0].id, { keywords: kws, category: safeCategory || null });
+        } catch (e) {
+          console.warn('[match] rules upsert failed', e?.message || e);
+        }
+      }
     }
   };
 
@@ -313,6 +343,17 @@ export default function App() {
             : post
         )
       );
+      try {
+        const existing = posts.find((p) => p.id === id) || {};
+        const finalType = (typeof type === 'string' && type.trim()) ? type.toLowerCase().trim() : (existing.type || '');
+        if (finalType === 'lost') {
+          const finalCategory = (typeof category === 'string' && category.trim()) ? category.trim() : (existing.category || null);
+          const kws = extractKeywords(`${title} ${description}`).slice(0, 5);
+          await setLostPostMatchRules(id, { keywords: kws, category: finalCategory || null });
+        }
+      } catch (e) {
+        console.warn('[match] rules upsert (edit) failed', e?.message || e);
+      }
     }
   };
 
@@ -352,6 +393,29 @@ export default function App() {
 
   useEffect(() => {
     fetchPosts();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') return;
+
+        const projectId = (Constants?.expoConfig?.extra?.eas?.projectId) || (Constants?.easConfig?.projectId);
+        const tokenResult = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+        const token = tokenResult?.data;
+        if (token) {
+          await registerDevicePushToken(token);
+        }
+      } catch (e) {
+        console.warn('[push] registration failed', e?.message || e);
+      }
+    })();
   }, []);
 
   // Debounced search/filtering
@@ -463,6 +527,10 @@ export default function App() {
             {(startDate || endDate) ? (
               <Button mode="text" onPress={onClearDateRange}>Clear</Button>
             ) : null}
+          </View>
+
+          <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
+            <Button mode="outlined" onPress={() => setAlertsVisible(true)}>Alerts</Button>
           </View>
 
           <DatePickerModal
@@ -658,6 +726,7 @@ export default function App() {
               </View>
             </View>
           </Modal>
+          <AlertsModal visible={alertsVisible} onDismiss={() => setAlertsVisible(false)} />
         </ScrollView>
       </SafeAreaView>
     </PaperProvider>
