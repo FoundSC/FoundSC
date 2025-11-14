@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Button } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons'; 
 
-
+// Hero component for the main landing section
 export function Hero() {
   return (
     <View style={styles.container}>
@@ -77,7 +77,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0ea5a4',
     borderRadius: 4,
     opacity: 0.3,
-    // For animation, you can use Animated API
   },
   pingInner: {
     width: 8,

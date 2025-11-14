@@ -1,11 +1,17 @@
 import React from 'react';
-import AppComponent from './app/App';
+import { Provider as PaperProvider } from 'react-native-paper';
+import { AuthProvider } from './app/contexts/AuthContext';
+import AppNavigator from './app/navigation/AppNavigator';
 import ErrorBoundary from './app/components/error-boundary';
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppComponent />
+      <PaperProvider>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </PaperProvider>
     </ErrorBoundary>
   );
 }

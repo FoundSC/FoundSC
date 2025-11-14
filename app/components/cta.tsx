@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 
+// Call to Action (CTA) component
 export default function CTA() {
   return (
     <View style={styles.section}>
@@ -22,6 +23,7 @@ export default function CTA() {
   );
 }
 
+// Styles for the CTA component
 const styles = StyleSheet.create({
   section: { paddingVertical: 20, width: '100%' },
   card: {

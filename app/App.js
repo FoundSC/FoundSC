@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 
 import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
@@ -28,11 +29,13 @@ import LocationPicker from './components/location-picker';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 registerTranslation('en', en);
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Supabase client
+import { supabase } from './lib/supabase';
+import { useAuth } from './contexts/AuthContext'; // Add this import at the top
 
 export default function App() {
+  const { user } = useAuth(); // ✅ Add this at the top of component
   const [posts, setPosts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -219,6 +222,12 @@ export default function App() {
 
   // Add a new post
   const handleAddPost = async (title, description, type, category, image_url) => {
+    // ✅ Changed: use the user from top-level hook
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create a post');
+      return;
+    }
+
     const safeTitle = (title || '').trim();
     const safeDescription = (description || '').trim();
     const safeType = (type || '').toLowerCase().trim();
@@ -251,6 +260,7 @@ export default function App() {
       image_url: uploadedUrl || null,
       latitude: newLatitude,
       longitude: newLongitude,
+      user_id: user.id,
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
@@ -307,18 +317,38 @@ export default function App() {
   };
 
   // Delete a post
-  const handleDeletePost = async (id) => {
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id);
+  const handleDeletePost = async (postId) => {
+  if (!user) {
+    Alert.alert('Error', 'You must be logged in to delete posts');
+    return;
+  }
 
-    if (error) {
-      console.error('Error deleting post:', error);
-    } else {
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-    }
-  };
+  // Check if the user owns the post
+  const { data: post } = await supabase
+    .from('posts')
+    .select('user_id')
+    .eq('id', postId)
+    .single();
+
+  if (post && post.user_id !== user.id) {
+    Alert.alert('Error', 'You can only delete your own posts');
+    return;
+  }
+
+  // delete logic
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId);
+
+  if (error) {
+    console.error('Error deleting post:', error);
+    Alert.alert('Error', 'Failed to delete post');
+  } else {
+    // Update UI
+    setPosts(posts.filter(post => post.id !== postId));
+  }
+};
 
   useEffect(() => {
     fetchPosts();

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import { Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
 
+// Define Post type
 type Post = {
   id: string | number;
   title: string;
@@ -26,8 +28,10 @@ type Post = {
   image_url?: string;
   latitude?: number | null;
   longitude?: number | null;
+  user_id?: string; // Added user_id to match the database
 };
 
+// Define component props
 interface PostsGridProps {
   posts: Post[];
   onEdit: (
@@ -41,28 +45,34 @@ interface PostsGridProps {
   onDelete: (id: string | number) => void;
 }
 
+// Main PostsGrid component
 export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
-
+  
+  // Handle edit button click
   const handleEditClick = (post: Post) => {
     setEditingPost(post);
     setEditTitle(post.title);
     setEditContent(post.description ?? '');
   };
 
+  // Handle edit form submission
   const handleEditSubmit = () => {
     if (
       editingPost &&
       editTitle.trim() &&
       editContent.trim()
     ) {
+      // Prepare updated fields
       const updatedType = editingPost.type || undefined;
       const updatedCategory = editingPost.category || undefined;
       const imageToPersist = (editImageUri || editingPost.imageUri || editingPost.image_url || undefined) as string | undefined;
+      
+      // Call onEdit prop with updated data
       onEdit(
         editingPost.id,
         editTitle,
@@ -72,6 +82,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
         imageToPersist as any,
       );
 
+      // Reset editing state
       setEditingPost(null);
       setEditTitle('');
       setEditContent('');
@@ -79,11 +90,13 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
     }
   };
 
+  // Handle delete button click
   const handleDeleteClick = (postId: string) => {
     setPostToDelete(postId);
     setDeleteDialogVisible(true);
   };
 
+  // Confirm deletion
   const handleDeleteConfirm = () => {
     if (postToDelete) {
       onDelete(postToDelete);
@@ -92,30 +105,37 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
     setDeleteDialogVisible(false);
   };
 
+  // State for edited image URI
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
 
-// function to pick new image
+// Function to pick new image
 const pickEditImage = async () => {
   try {
     console.log('[edit] request media permission');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    // Check for permission
     if (status !== 'granted') {
       alert('Sorry, we need media library permissions to change the image.');
       console.warn('[edit] permission denied');
       return;
     }
 
+    // Launch image library
     console.log('[edit] opening image library');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
+    // Handle cancellation
     if (result.canceled) {
       console.log('[edit] selection canceled');
       return;
     }
+    // Set selected image URI
     console.log('[edit] result', !!result.assets, result.assets?.length);
+    // Check if assets are available
     if (result.assets && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       console.log('[edit] selected uri', uri);
@@ -125,11 +145,15 @@ const pickEditImage = async () => {
     } else {
       console.log('[edit] no assets returned');
     }
+  // Handle errors
   } catch (e) {
     console.error('[edit] picker error:', (e as any)?.message || e);
   }
 };
+  // Get current user
+  const { user } = useAuth();
 
+  // Render individual post card
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.cardContainer}>
       <Card style={styles.card}>
@@ -138,13 +162,16 @@ const pickEditImage = async () => {
             <Text style={styles.title} numberOfLines={2}>
               {item.title}
             </Text>
-            <View style={styles.actions}>
-              <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
-              <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
-            </View>
+            {user?.id === item.user_id && (
+              <View style={styles.actions}>
+                <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
+                <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
+              </View>
+            )}
           </View>
 
           <Text style={styles.date}>
+            {/* Format and display creation date */}
             {item.created_at
               ? new Date(item.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
@@ -153,7 +180,7 @@ const pickEditImage = async () => {
                 })
               : ''}
           </Text>
-
+          {/* Display post image if available */}
           {(item.image_url || item.imageUri) ? (
             <Image
               source={{ uri: (item.image_url || item.imageUri) as string }}
@@ -166,7 +193,7 @@ const pickEditImage = async () => {
               resizeMode="cover"
             />
           ) : null}
-
+          {/* Display post description and metadata */}
           <Text style={styles.content} numberOfLines={4}>
             {item.description}
           </Text>
@@ -188,6 +215,7 @@ const pickEditImage = async () => {
     </View>
   );
 
+  // Handle empty state
   if (posts.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -200,6 +228,7 @@ const pickEditImage = async () => {
     );
   }
 
+  // Main render
   return (
     <View style={styles.container}>
       <FlatList
@@ -212,6 +241,7 @@ const pickEditImage = async () => {
         scrollEnabled={false}
       />
 
+      {/* Edit Post Modal */}
       {editingPost && (
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
@@ -274,6 +304,7 @@ const pickEditImage = async () => {
                       }
                       style={styles.dropdown}
                     >
+                      {/* Category options */}
                       <Picker.Item label="Electronics" value="Electronics" />
                       <Picker.Item label="Pets" value="Pets" />
                       <Picker.Item label="Accessories" value="Accessories" />
@@ -325,6 +356,7 @@ const pickEditImage = async () => {
         </View>
       )}
 
+      {/* Delete Confirmation Dialog */}
       <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
         <Dialog.Title>Are you sure?</Dialog.Title>
         <Dialog.Content>
@@ -338,7 +370,7 @@ const pickEditImage = async () => {
     </View>
   );
 }
-
+// Styles for the PostsGrid component
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   listContent: { padding: 8 },

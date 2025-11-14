@@ -1,6 +1,7 @@
 import React from "react"
 import { View, Text, StyleSheet, FlatList } from "react-native"
 
+// Features component showcasing app capabilities
 const features = [
 	{
 		key: "smart-search",
@@ -29,6 +30,7 @@ const features = [
 	},
 ]
 
+// Main Features component
 export function Features() {
 	return (
 		<View style={styles.section}>
@@ -61,6 +63,7 @@ export function Features() {
 	)
 }
 
+// Styles for the Features component
 const styles = StyleSheet.create({
 	section: { paddingVertical: 20, paddingHorizontal: 16 },
 	header: { marginBottom: 12, alignItems: "center" },
