@@ -70,6 +70,7 @@
     "dotenv": "^17.2.3",
     "expo": "^54.0.22",
     "expo-image-picker": "~17.0.8",
+    "expo-notifications": "^0.32.12",
     "lucide-react": "^0.546.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
