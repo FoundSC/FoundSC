@@ -120,6 +120,21 @@ export default function SignUpScreen({ navigation }: any) {
               Sign In
             </Button>
           </View>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            mode="outlined"
+            onPress={() => navigation.replace('App')}
+            style={styles.guestButton}
+            icon="account-outline"
+          >
+            Continue as Guest
+          </Button>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -188,5 +203,25 @@ const styles = StyleSheet.create({
   loginLink: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: '#999',
+  },
+  guestButton: {
+    borderRadius: 8,
+    paddingVertical: 6,
+    borderColor: '#999',
   },
 });
