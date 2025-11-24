@@ -59,6 +59,7 @@
     "zod": "3.25.76"
   },
   "dependencies": {
+    "@expo/ngrok-bin-linux-x64": "^2.3.42",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
@@ -72,10 +73,10 @@
     "clsx": "^2.1.1",
     "cross-fetch": "^4.1.0",
     "dotenv": "^17.2.3",
-    "expo": "^54.0.23",
+    "expo": "~54.0.25",
     "expo-image-picker": "~17.0.8",
     "expo-location": "~19.0.7",
-    "expo-notifications": "~0.32.12",
+    "expo-notifications": "~0.32.13",
     "expo-secure-store": "~15.0.7",
     "lucide-react": "^0.546.0",
     "react": "19.1.0",
