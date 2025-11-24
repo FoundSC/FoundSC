@@ -17,7 +17,18 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Main tabs for authenticated users
+/**
+ * Main tabs for authenticated users
+ *
+ * Bottom tab navigation with 3 tabs:
+ * 1. Home - All posts feed (MainApp component)
+ * 2. My Posts - User's own posts (MyPostsScreen)
+ * 3. Profile - User profile (ProfileScreen)
+ *
+ * Tab colors:
+ * - Active: #0ea5a4 (teal) for consistency with existing design
+ * - Inactive: #666 (gray)
+ */
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -27,8 +38,8 @@ function MainTabs() {
         tabBarInactiveTintColor: '#666',
       }}
     >
-      <Tab.Screen 
-        name="AllPosts" 
+      <Tab.Screen
+        name="AllPosts"
         component={MainApp}
         options={{
           tabBarLabel: 'Home',
@@ -37,11 +48,21 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="MyPosts" 
+      <Tab.Screen
+        name="MyPosts"
         component={MyPostsScreen}
         options={{
           tabBarLabel: 'My Posts',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="file-document-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Icon name="account" color={color} size={size} />
           ),
@@ -67,25 +88,13 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            {/* Main tabs (Home + My Posts) */}
+            {/* Main tabs (Home + My Posts + Profile) with bottom navigation */}
             <Stack.Screen name="Main" component={MainTabs} />
 
             {/*
-              Profile and Rating Screens
-              These are added as stack screens so they can be navigated to from anywhere.
-              headerShown is set per screen for back navigation.
+              Additional screens that can be navigated to from tabs
+              These are added as stack screens with headers for back navigation
             */}
-            <Stack.Screen
-              name="Profile"
-              component={ProfileScreen}
-              options={{
-                headerShown: true,
-                title: 'Profile',
-                // Purple header to match app theme (#6d28d9 used in buttons)
-                headerStyle: { backgroundColor: '#6d28d9' },
-                headerTintColor: '#fff',
-              }}
-            />
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
