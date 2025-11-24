@@ -14,6 +14,7 @@ import { Card, Button, Dialog, IconButton } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import UserSelectorModal from './user-selector-modal';
 
 
 // Define Post type
@@ -28,7 +29,8 @@ type Post = {
   image_url?: string;
   latitude?: number | null;
   longitude?: number | null;
-  user_id?: string; // Added user_id to match the database
+  user_id?: string; // User who created the post
+  status?: string; // Post status: 'active', 'in_exchange', 'found', 'closed'
 };
 
 // Define component props
@@ -43,15 +45,20 @@ interface PostsGridProps {
     imageCandidate?: string,
   ) => void;
   onDelete: (id: string | number) => void;
+  onMarkAsFound?: (postId: string | number, finderId: string, finderName: string) => void;
 }
 
 // Main PostsGrid component
-export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
+export default function PostsGrid({ posts, onEdit, onDelete, onMarkAsFound }: PostsGridProps) {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+
+  // "Mark as Found" modal state
+  const [markAsFoundModalVisible, setMarkAsFoundModalVisible] = useState(false);
+  const [postToMarkAsFound, setPostToMarkAsFound] = useState<Post | null>(null);
   
   // Handle edit button click
   const handleEditClick = (post: Post) => {
@@ -103,6 +110,38 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
       setPostToDelete(null);
     }
     setDeleteDialogVisible(false);
+  };
+
+  /**
+   * Handle "Mark as Found" button click
+   * Opens modal to select who found the item
+   *
+   * @param post - The post to mark as found
+   */
+  const handleMarkAsFoundClick = (post: Post) => {
+    setPostToMarkAsFound(post);
+    setMarkAsFoundModalVisible(true);
+  };
+
+  /**
+   * Handle user selection from modal
+   * Calls onMarkAsFound callback with selected user info
+   *
+   * Process:
+   * 1. User selects who found their item
+   * 2. Create exchange in database
+   * 3. Navigate both users to rating screen
+   *
+   * @param finderId - UUID of the user who found the item
+   * @param finderName - Display name of the finder
+   */
+  const handleUserSelected = (finderId: string, finderName: string) => {
+    if (postToMarkAsFound && onMarkAsFound) {
+      onMarkAsFound(postToMarkAsFound.id, finderId, finderName);
+    }
+    // Close modal and reset state
+    setMarkAsFoundModalVisible(false);
+    setPostToMarkAsFound(null);
   };
 
   // State for edited image URI
@@ -209,6 +248,32 @@ const pickEditImage = async () => {
           ) : (
             <Text style={styles.meta}>Location: Not set</Text>
           )}
+
+          {/*
+            "Mark as Found" button - Only shown when:
+            1. Current user is the post owner (user?.id === item.user_id)
+            2. Post type is "lost" (they lost something and someone found it)
+            3. Post status is "active" (not already in exchange or found)
+            4. onMarkAsFound callback is provided by parent component
+
+            When clicked, opens modal to select who found the item,
+            then creates an exchange and navigates to rating screen.
+          */}
+          {user?.id === item.user_id &&
+            item.type?.toLowerCase() === 'lost' &&
+            item.status === 'active' &&
+            onMarkAsFound && (
+              <Button
+                mode="contained"
+                onPress={() => handleMarkAsFoundClick(item)}
+                style={styles.markFoundButton}
+                buttonColor="#4CAF50"
+                icon="check-circle"
+                compact
+              >
+                Mark as Found
+              </Button>
+            )}
 
         </Card.Content>
       </Card>
@@ -367,6 +432,20 @@ const pickEditImage = async () => {
           <Button onPress={handleDeleteConfirm}>Delete</Button>
         </Dialog.Actions>
       </Dialog>
+
+      {/* User Selector Modal for "Mark as Found" */}
+      {postToMarkAsFound && (
+        <UserSelectorModal
+          visible={markAsFoundModalVisible}
+          postId={postToMarkAsFound.id as number}
+          currentUserId={user?.id || ''}
+          onSelectUser={handleUserSelected}
+          onCancel={() => {
+            setMarkAsFoundModalVisible(false);
+            setPostToMarkAsFound(null);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -432,5 +511,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#1e40af',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  // "Mark as Found" button styling
+  // marginTop: 12px provides spacing from location/metadata above
+  // borderRadius: 8px matches other buttons in the app for consistency
+  markFoundButton: {
+    marginTop: 12,
+    borderRadius: 8,
   },
 });
