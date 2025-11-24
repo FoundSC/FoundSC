@@ -28,8 +28,11 @@ import PostsMapView from './components/map-view';
 import LocationPicker from './components/location-picker';
 // Removed native Picker in favor of react-native-paper Menu
 import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
+// Notifications: Expo APIs to request permission and get Expo push token
 import * as Notifications from 'expo-notifications';
+// Constants: used to read EAS projectId required by getExpoPushTokenAsync
 import Constants from 'expo-constants';
+// App-side helpers for registering device token and managing match rules
 import { registerDevicePushToken } from './lib/notifications';
 import AlertsModal from './components/alerts';
 import { setLostPostMatchRules } from './lib/notifications';
@@ -39,6 +42,7 @@ registerTranslation('en', en);
 import { supabase } from './lib/supabase';
 import { useAuth } from './contexts/AuthContext'; // Add this import at the top
 
+// Configure how notifications are displayed while the app is foregrounded
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -51,6 +55,8 @@ export default function App() {
   const { user } = useAuth(); // ✅ Add this at the top of component
   const [posts, setPosts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  // Holds the Expo push token for this device/session (set after permission)
+  const [pushToken, setPushToken] = useState(null);
   const [alertsVisible, setAlertsVisible] = useState(false);
 
   const [newTitle, setNewTitle] = useState('');
@@ -283,6 +289,7 @@ export default function App() {
       latitude: newLatitude,
       longitude: newLongitude,
       user_id: user.id,
+      ...(safeType === 'lost' && pushToken ? { creator_device_token: pushToken } : {}),
     };
 
     const { data, error } = await supabase.from('posts').insert([payload]).select();
@@ -294,6 +301,7 @@ export default function App() {
     if (data && data[0]) {
       setPosts((prev) => [data[0], ...prev]);
       setNewImageUri(null);
+      // After creating a LOST post, upsert simple keyword/category match rules used by the DB trigger
       if (safeType === 'lost') {
         try {
           const kws = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);
@@ -395,6 +403,7 @@ export default function App() {
     fetchPosts();
   }, []);
 
+  // On mount: request notification permissions and register device token
   useEffect(() => {
     (async () => {
       try {
@@ -406,10 +415,13 @@ export default function App() {
         }
         if (finalStatus !== 'granted') return;
 
+        // EAS projectId is required on EAS-managed projects to get an Expo push token
         const projectId = (Constants?.expoConfig?.extra?.eas?.projectId) || (Constants?.easConfig?.projectId);
         const tokenResult = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
         const token = tokenResult?.data;
         if (token) {
+          setPushToken(token);
+          // Persist the token in the backend for future use (ties to user_id if logged in)
           await registerDevicePushToken(token);
         }
       } catch (e) {
