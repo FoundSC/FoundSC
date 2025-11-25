@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 
-import { Provider as PaperProvider, Button, Menu } from 'react-native-paper';
+import { Provider as PaperProvider, Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 
@@ -21,13 +21,10 @@ import { createClient } from '@supabase/supabase-js';
 import Header from './components/header';
 import CTA from './components/cta';
 import { AddPostButton } from './components/add-post-button';
-import PostsGrid from './components/posts-grid';
 import { Features } from './components/features';
 import { Hero } from './components/hero';
 import PostsMapView from './components/map-view';
 import LocationPicker from './components/location-picker';
-// Removed native Picker in favor of react-native-paper Menu
-import { DatePickerModal, en, registerTranslation } from 'react-native-paper-dates';
 // Notifications: Expo APIs to request permission and get Expo push token
 import * as Notifications from 'expo-notifications';
 // Constants: used to read EAS projectId required by getExpoPushTokenAsync
@@ -36,6 +33,9 @@ import Constants from 'expo-constants';
 import { registerDevicePushToken } from './lib/notifications';
 import AlertsModal from './components/alerts';
 import { setLostPostMatchRules } from './lib/notifications';
+import { en, registerTranslation } from 'react-native-paper-dates';
+
+// Register date picker translations for English locale
 registerTranslation('en', en);
 
 // Supabase client
@@ -67,70 +67,12 @@ export default function App() {
   const [newLatitude, setNewLatitude] = useState(null);
   const [newLongitude, setNewLongitude] = useState(null);
 
-  // View mode state (grid or map)
-  const [viewMode, setViewMode] = useState('grid');
-
-  // Search & filter state
-  const [searchText, setSearchText] = useState('');
-  const [filterCategory, setFilterCategory] = useState('All');
-  const [filterType, setFilterType] = useState('All');
-  const [startDate, setStartDate] = useState(''); // YYYY-MM-DD
-  const [endDate, setEndDate] = useState(''); // YYYY-MM-DD
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
-  const [typeMenuVisible, setTypeMenuVisible] = useState(false);
-
-  const CATEGORIES = [
-    'Electronics',
-    'Pets',
-    'Accessories',
-    'Clothing',
-    'Other',
-  ];
-
-  const fetchPosts = async (filters = {}) => {
-    let query = supabase
+  // Fetch all posts for map view
+  const fetchPosts = async () => {
+    const { data, error } = await supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false });
-
-    if (filters.type && filters.type !== 'All') {
-      query = query.eq('type', String(filters.type).toLowerCase());
-    }
-    if (filters.category && filters.category !== 'All') {
-      query = query.eq('category', filters.category);
-    }
-    if (filters.search && filters.search.trim()) {
-      const term = filters.search.trim();
-      // Search title, description, and category
-      query = query.or(
-        `title.ilike.%${term}%,description.ilike.%${term}%,category.ilike.%${term}%`
-      );
-    }
-    // Date range on created_at
-    if (filters.startDate) {
-      const s = new Date(filters.startDate + 'T00:00:00Z').toISOString();
-      query = query.gte('created_at', s);
-    }
-    if (filters.endDate) {
-      // include entire end day by setting to 23:59:59Z
-      const e = new Date(filters.endDate + 'T23:59:59Z').toISOString();
-      query = query.lte('created_at', e);
-    }
-
-    // Bounding box filter for map viewport queries
-    if (filters.bounds) {
-      const { north, south, east, west } = filters.bounds;
-      query = query
-        .gte('latitude', south)
-        .lte('latitude', north)
-        .gte('longitude', west)
-        .lte('longitude', east)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching posts:', error);
@@ -313,91 +255,6 @@ export default function App() {
     }
   };
 
-  // Edit an existing post (optionally updates type, category, image)
-  const handleEditPost = async (id, title, description, type, category, imageCandidate) => {
-    if (!title || !description) {
-      console.error('Title or content is missing');
-      return;
-    }
-
-    let image_url_to_set = undefined;
-    // If an image candidate is provided and looks like a local uri, upload first
-    if (imageCandidate && typeof imageCandidate === 'string') {
-      const isRemote = imageCandidate.startsWith('http://') || imageCandidate.startsWith('https://');
-      if (!isRemote) {
-        image_url_to_set = await uploadImageIfNeeded(imageCandidate);
-      } else {
-        image_url_to_set = imageCandidate;
-      }
-    }
-
-    const updatePayload = { title, description };
-    if (typeof type === 'string' && type.trim()) updatePayload.type = type.toLowerCase().trim();
-    if (typeof category === 'string' && category.trim()) updatePayload.category = category.trim();
-    if (image_url_to_set) updatePayload.image_url = image_url_to_set;
-
-    const { error } = await supabase
-      .from('posts')
-      .update(updatePayload)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error editing post:', error);
-    } else {
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === id
-            ? { ...post, ...updatePayload }
-            : post
-        )
-      );
-      try {
-        const existing = posts.find((p) => p.id === id) || {};
-        const finalType = (typeof type === 'string' && type.trim()) ? type.toLowerCase().trim() : (existing.type || '');
-        if (finalType === 'lost') {
-          const finalCategory = (typeof category === 'string' && category.trim()) ? category.trim() : (existing.category || null);
-          const kws = extractKeywords(`${title} ${description}`).slice(0, 5);
-          await setLostPostMatchRules(id, { keywords: kws, category: finalCategory || null });
-        }
-      } catch (e) {
-        console.warn('[match] rules upsert (edit) failed', e?.message || e);
-      }
-    }
-  };
-
-  // Delete a post
-  const handleDeletePost = async (postId) => {
-  if (!user) {
-    Alert.alert('Error', 'You must be logged in to delete posts');
-    return;
-  }
-
-  // Check if the user owns the post
-  const { data: post } = await supabase
-    .from('posts')
-    .select('user_id')
-    .eq('id', postId)
-    .single();
-
-  if (post && post.user_id !== user.id) {
-    Alert.alert('Error', 'You can only delete your own posts');
-    return;
-  }
-
-  // delete logic
-  const { error } = await supabase
-    .from('posts')
-    .delete()
-    .eq('id', postId);
-
-  if (error) {
-    console.error('Error deleting post:', error);
-    Alert.alert('Error', 'Failed to delete post');
-  } else {
-    // Update UI
-    setPosts(posts.filter(post => post.id !== postId));
-  }
-};
 
   useEffect(() => {
     fetchPosts();
@@ -407,7 +264,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        const { status: existingStatus} = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
         if (existingStatus !== 'granted') {
           const { status } = await Notifications.requestPermissionsAsync();
@@ -430,33 +287,6 @@ export default function App() {
     })();
   }, []);
 
-  // Debounced search/filtering
-  useEffect(() => {
-    const t = setTimeout(() => {
-      fetchPosts({
-        search: searchText,
-        category: filterCategory,
-        type: filterType,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
-    }, 300);
-    return () => clearTimeout(t);
-  }, [searchText, filterCategory, filterType, startDate, endDate]);
-
-  const onConfirmDateRange = ({ startDate: s, endDate: e }) => {
-    const fmt = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
-    setStartDate(fmt(s));
-    setEndDate(fmt(e));
-    setDatePickerOpen(false);
-  };
-
-  const onClearDateRange = () => {
-    setStartDate('');
-    setEndDate('');
-    setDatePickerOpen(false);
-  };
-
   return (
     <PaperProvider>
       <SafeAreaView style={styles.container}>
@@ -465,139 +295,22 @@ export default function App() {
           <CTA />
           <Hero />
           <Features />
-          {/* Search Bar */}
-          <View style={styles.searchBarContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by title, item, or category..."
-              value={searchText}
-              onChangeText={setSearchText}
-              autoCapitalize="none"
-              returnKeyType="search"
-            />
-          </View>
 
-          {/* Filters */}
-          <View style={styles.filtersRow}>
-            <View style={{ flex: 1 }}>
-              <Menu
-                visible={categoryMenuVisible}
-                onDismiss={() => setCategoryMenuVisible(false)}
-                anchor={
-                  <Button
-                    mode="outlined"
-                    onPress={() => setCategoryMenuVisible(true)}
-                    icon="chevron-down"
-                  >
-                    {filterCategory === 'All' ? 'Category: All' : filterCategory}
-                  </Button>
-                }
-                contentStyle={{ backgroundColor: '#fff' }}
-              >
-                <Menu.Item onPress={() => { setFilterCategory('All'); setCategoryMenuVisible(false); }} title="Category: All" />
-                <Menu.Item onPress={() => { setFilterCategory('Electronics'); setCategoryMenuVisible(false); }} title="Electronics" />
-                <Menu.Item onPress={() => { setFilterCategory('Pets'); setCategoryMenuVisible(false); }} title="Pets" />
-                <Menu.Item onPress={() => { setFilterCategory('Accessories'); setCategoryMenuVisible(false); }} title="Accessories" />
-                <Menu.Item onPress={() => { setFilterCategory('Clothing'); setCategoryMenuVisible(false); }} title="Clothing" />
-                <Menu.Item onPress={() => { setFilterCategory('Other'); setCategoryMenuVisible(false); }} title="Other" />
-              </Menu>
-            </View>
-            <View style={{ width: 8 }} />
-            <View style={{ flex: 1 }}>
-              <Menu
-                visible={typeMenuVisible}
-                onDismiss={() => setTypeMenuVisible(false)}
-                anchor={
-                  <Button
-                    mode="outlined"
-                    onPress={() => setTypeMenuVisible(true)}
-                    icon="chevron-down"
-                  >
-                    {filterType === 'All' ? 'Type: All' : (filterType === 'lost' ? 'Lost' : 'Found')}
-                  </Button>
-                }
-                contentStyle={{ backgroundColor: '#fff' }}
-              >
-                <Menu.Item onPress={() => { setFilterType('All'); setTypeMenuVisible(false); }} title="Type: All" />
-                <Menu.Item onPress={() => { setFilterType('lost'); setTypeMenuVisible(false); }} title="Lost" />
-                <Menu.Item onPress={() => { setFilterType('found'); setTypeMenuVisible(false); }} title="Found" />
-              </Menu>
-            </View>
-          </View>
-
-          {/* Date range selector */}
-          <View style={styles.datesRow}>
-            <Button
-              mode="outlined"
-              onPress={() => setDatePickerOpen(true)}
-            >
-              {startDate && endDate
-                ? `${startDate} → ${endDate}`
-                : 'Select Date'}
-            </Button>
-            <View style={{ width: 8 }} />
-            {(startDate || endDate) ? (
-              <Button mode="text" onPress={onClearDateRange}>Clear</Button>
-            ) : null}
-          </View>
-
+          {/* Alerts and Add Post Button */}
           <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
             <Button mode="outlined" onPress={() => setAlertsVisible(true)}>Alerts</Button>
           </View>
-
-          <DatePickerModal
-            locale="en"
-            mode="range"
-            visible={datePickerOpen}
-            onDismiss={() => setDatePickerOpen(false)}
-            startDate={startDate ? new Date(startDate) : undefined}
-            endDate={endDate ? new Date(endDate) : undefined}
-            onConfirm={onConfirmDateRange}
-            saveLabel="Apply"
-            closeIcon="close"
-            startLabel="From"
-            endLabel="To"
-          />
 
           <View style={styles.section}>
             <AddPostButton onAddPost={() => setModalVisible(true)} />
           </View>
 
-          {/* View Toggle */}
-          <View style={styles.viewToggleContainer}>
-            <Button
-              mode={viewMode === 'grid' ? 'contained' : 'outlined'}
-              onPress={() => setViewMode('grid')}
-              icon="view-grid"
-              style={styles.viewToggleBtn}
-            >
-              Grid View
-            </Button>
-            <Button
-              mode={viewMode === 'map' ? 'contained' : 'outlined'}
-              onPress={() => setViewMode('map')}
-              icon="map"
-              style={styles.viewToggleBtn}
-            >
-              Map View
-            </Button>
-          </View>
-
-          {/* Posts Display (Grid or Map) */}
+          {/* Map View - Always Visible */}
           <View style={styles.postsSection}>
-            {viewMode === 'grid' ? (
-              <PostsGrid
-                posts={posts}
-                onEdit={handleEditPost}
-                onDelete={handleDeletePost}
-              />
-            ) : (
-              <PostsMapView
-                posts={posts}
-                onBoundsChange={(bounds) => fetchPosts({ search: searchText, type: filterType, category: filterCategory, startDate, endDate, bounds })}
-                onRefresh={() => fetchPosts({ search: searchText, type: filterType, category: filterCategory, startDate, endDate })}
-              />
-            )}
+            <PostsMapView
+              posts={posts}
+              onRefresh={() => fetchPosts()}
+            />
           </View>
 
           {/* Add Post Modal */}
@@ -753,65 +466,13 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  searchBarContainer: {
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    height: 44,
-    backgroundColor: '#fff',
-  },
   section: {
     alignItems: 'center',
     marginVertical: 20,
   },
-  viewToggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginVertical: 16,
-    paddingHorizontal: 16,
-  },
-  viewToggleBtn: {
-    flex: 1,
-  },
   postsSection: {
     marginTop: 10,
     minHeight: 500,
-  },
-  filtersRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  datesRow: {
-    flexDirection: 'row',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  dateLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 6,
-    marginLeft: 4,
-  },
-  dropdownContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    // Important for Android dropdown and iOS popover layering
-    zIndex: 10,
-    elevation: 2,
-  },
-  dropdown: {
-    width: '100%',
-    height: 44,
-    backgroundColor: '#fff',
   },
   modalOverlay: {
     flex: 1,

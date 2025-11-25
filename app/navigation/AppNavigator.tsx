@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import MyPostsScreen from '../screens/MyPostsScreen';
+import AllPostsScreen from '../screens/AllPostsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import RatingScreen from '../screens/RatingScreen';
@@ -18,11 +18,11 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 /**
- * Main tabs for authenticated users
+ * Main tabs for all users (authenticated and guest)
  *
  * Bottom tab navigation with 3 tabs:
- * 1. Home - All posts feed (MainApp component)
- * 2. My Posts - User's own posts (MyPostsScreen)
+ * 1. Home - Intro content + map (MainApp component)
+ * 2. All Posts - Grid view with search/filters (AllPostsScreen)
  * 3. Profile - User profile (ProfileScreen)
  *
  * Tab colors:
@@ -39,7 +39,7 @@ function MainTabs() {
       }}
     >
       <Tab.Screen
-        name="AllPosts"
+        name="Home"
         component={MainApp}
         options={{
           tabBarLabel: 'Home',
@@ -49,12 +49,12 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="MyPosts"
-        component={MyPostsScreen}
+        name="AllPosts"
+        component={AllPostsScreen}
         options={{
-          tabBarLabel: 'My Posts',
+          tabBarLabel: 'All Posts',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="file-document-outline" color={color} size={size} />
+            <Icon name="view-grid" color={color} size={size} />
           ),
         }}
       />
