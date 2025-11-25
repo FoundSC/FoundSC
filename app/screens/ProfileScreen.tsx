@@ -53,7 +53,11 @@ export default function ProfileScreen({ route, navigation }: any) {
   const [activeTab, setActiveTab] = useState<'posts' | 'ratings'>('posts');
 
   useEffect(() => {
-    loadProfileData();
+    if (profileUserId) {
+      loadProfileData();
+    } else {
+      setLoading(false);
+    }
   }, [profileUserId]);
 
   /**
@@ -169,11 +173,12 @@ export default function ProfileScreen({ route, navigation }: any) {
       active: '#2196F3',
     };
 
+    // TODO: Implement PostDetail screen
     return (
       <TouchableOpacity
         key={item.id}
         style={styles.postCard}
-        onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        // onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
       >
         {item.image_url && (
           <Image
@@ -251,6 +256,18 @@ export default function ProfileScreen({ route, navigation }: any) {
       </View>
     );
   };
+
+  if (!profileUserId) {
+    return (
+      <View style={styles.errorContainer}>
+        <MaterialCommunityIcons name="account-off" size={64} color="#ccc" />
+        <Text style={styles.errorText}>Please log in to view your profile</Text>
+        <Button mode="contained" onPress={() => navigation.navigate('Login')}>
+          Log In
+        </Button>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
