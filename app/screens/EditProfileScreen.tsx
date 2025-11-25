@@ -15,6 +15,8 @@ import {
 import { Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile, updateUserProfile } from '../lib/ratings';
 import { supabase } from '../lib/supabase';
@@ -131,9 +133,10 @@ export default function EditProfileScreen({ navigation }: any) {
     try {
       setUploading(true);
 
-      // Fetch the image as a blob for upload
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // Read file as base64 using legacy FileSystem API
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
 
       // Create unique filename: userId_timestamp.jpg
       // This prevents filename conflicts and organizes by user
@@ -144,7 +147,7 @@ export default function EditProfileScreen({ navigation }: any) {
       // Upload to Supabase Storage 'avatars' bucket
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, decode(base64), {
           contentType: 'image/jpeg',
           upsert: false, // Don't overwrite if exists (shouldn't happen with timestamp)
         });
