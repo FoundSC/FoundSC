@@ -129,7 +129,7 @@ export default function SignUpScreen({ navigation }: any) {
 
           <Button
             mode="outlined"
-            onPress={() => navigation.replace('App')}
+            onPress={() => navigation.replace('Main')}
             style={styles.guestButton}
             icon="account-outline"
           >

@@ -86,15 +86,27 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
+        {/* Auth screens - only shown when NOT logged in */}
+        {!user && (
           <>
-            {/* Main tabs (Home + My Posts + Profile) with bottom navigation */}
-            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        )}
 
-            {/*
-              Additional screens that can be navigated to from tabs
-              These are added as stack screens with headers for back navigation
-            */}
+        {/*
+          Main app screens - available to both authenticated AND guest users
+          Bottom tabs are always visible for better UX
+        */}
+        <Stack.Screen name="Main" component={MainTabs} />
+
+        {/*
+          Additional screens with headers (EditProfile, Rating)
+          Only accessible when authenticated
+        */}
+        {user && (
+          <>
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
@@ -117,19 +129,6 @@ export default function AppNavigator() {
                 headerBackVisible: false,
               }}
             />
-          </>
-        ) : (
-          <>
-            {/* Auth screens for non-authenticated users */}
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="SignUp" component={SignUpScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-
-            {/*
-              Guest mode: Allow unauthenticated users to access main app
-              This enables the "Continue as Guest" flow from login/signup screens
-            */}
-            <Stack.Screen name="App" component={MainApp} />
           </>
         )}
       </Stack.Navigator>

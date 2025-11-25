@@ -106,7 +106,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
     // Launch image picker
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1], // Square aspect ratio for profile pictures
       quality: 0.8, // 80% quality - good balance between size and clarity
@@ -139,7 +139,6 @@ export default function EditProfileScreen({ navigation }: any) {
       });
 
       // Create unique filename: userId_timestamp.jpg
-      // This prevents filename conflicts and organizes by user
       const fileExt = 'jpg';
       const fileName = `${user!.id}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
@@ -149,7 +148,7 @@ export default function EditProfileScreen({ navigation }: any) {
         .from('avatars')
         .upload(filePath, decode(base64), {
           contentType: 'image/jpeg',
-          upsert: false, // Don't overwrite if exists (shouldn't happen with timestamp)
+          upsert: false,
         });
 
       if (uploadError) {

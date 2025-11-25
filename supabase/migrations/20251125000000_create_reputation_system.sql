@@ -263,11 +263,6 @@ CREATE POLICY "Participants can rate" ON ratings
       AND auth.uid() IN (post_owner_id, finder_id)
       AND status IN ('pending', 'confirmed')
     )
-    AND NOT EXISTS (
-      SELECT 1 FROM ratings
-      WHERE exchange_id = NEW.exchange_id
-      AND rater_id = auth.uid()
-    )
   );
 
 -- ============================================================================

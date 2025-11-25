@@ -155,7 +155,7 @@ export default function RatingScreen({ route, navigation }: any) {
         return;
       }
 
-      // Success! Show confirmation and navigate away
+      // On success show confirmation and navigate away
       Alert.alert(
         'Rating Submitted',
         'Thank you for your feedback! Your rating has been saved.',
