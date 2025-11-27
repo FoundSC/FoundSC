@@ -314,28 +314,28 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           }}
           style={{ maxHeight: '85%', backgroundColor: '#fff' }}
         >
-          {viewPost && (
-            <>
-              <Dialog.Title style={{ fontSize: 22, fontWeight: '700', backgroundColor: '#fff', color: '#111827' }}>
-                {viewPost.title}
-              </Dialog.Title>
-              
-              <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
-                <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
-                  {user?.id === viewPost.user_id && 
-                    viewPost.type === 'lost' && 
-                    !viewPost.description?.includes('✅ This item has been found!') && (
-                      <Button
-                        mode="contained"
-                        onPress={() => handleMarkFound(viewPost)}
-                        loading={updatingId === viewPost.id}
-                        style={{ marginTop: 8, marginBottom: 12 }}
-                        buttonColor="#16a34a"
-                      >
-                        Mark as Found
-                      </Button>
-                    )}
+          <Dialog.Title style={{ fontSize: 22, fontWeight: '700', backgroundColor: '#fff', color: '#111827' }}>
+            {viewPost?.title}
+          </Dialog.Title>
+          
+          <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
+              {viewPost && user?.id === viewPost.user_id && 
+                viewPost.type === 'lost' && 
+                !viewPost.description?.includes('✅ This item has been found!') && (
+                  <Button
+                    mode="contained"
+                    onPress={() => handleMarkFound(viewPost)}
+                    loading={updatingId === viewPost.id}
+                    style={{ marginTop: 8, marginBottom: 12 }}
+                    buttonColor="#16a34a"
+                  >
+                    Mark as Found
+                  </Button>
+                )}
 
+              {viewPost && (
+                <>
                   <Text style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
                     {viewPost.created_at
                       ? new Date(viewPost.created_at).toLocaleString()
@@ -441,54 +441,54 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                       Item not on map
                     </Text>
                   )}
-                </ScrollView>
-              </Dialog.ScrollArea>
+                </>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
 
-              <Dialog.Actions style={{ backgroundColor: '#fff' }}>
-                {user?.id === viewPost.user_id && (
-                  <Button
-                    mode="contained"
-                    onPress={() => {
-                      handleEditClick(viewPost);
-                      setViewPost(null);
-                      setTapPos(null);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                )}
-                {viewPost.user_id !== user?.id && (
-                  <Button
-                    mode="contained"
-                    onPress={async () => {
-                      const { data } = await supabase.rpc('get_or_create_conversation', {
-                        user1_id: user?.id,
-                        user2_id: viewPost.user_id,
-                      });
-                      
-                      if (data) {
-                        navigation.navigate('Chat', {
-                          conversationId: data.conversation_id,
-                          otherUserId: viewPost.user_id,
-                          otherUserEmail: viewPost.user_email,
-                        });
-                      }
-                    }}
-                  >
-                    Contact
-                  </Button>
-                )}
-                <Button
-                  onPress={() => {
-                    setViewPost(null);
-                    setTapPos(null);
-                  }}
-                >
-                  Close
-                </Button>
-              </Dialog.Actions>
-            </>
-          )}
+          <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            {viewPost && user?.id === viewPost.user_id && (
+              <Button
+                mode="contained"
+                onPress={() => {
+                  handleEditClick(viewPost);
+                  setViewPost(null);
+                  setTapPos(null);
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            {viewPost && viewPost.user_id !== user?.id && (
+              <Button
+                mode="contained"
+                onPress={async () => {
+                  const { data } = await supabase.rpc('get_or_create_conversation', {
+                    user1_id: user?.id,
+                    user2_id: viewPost.user_id,
+                  });
+                  
+                  if (data) {
+                    navigation.navigate('Chat', {
+                      conversationId: data.conversation_id,
+                      otherUserId: viewPost.user_id,
+                      otherUserEmail: viewPost.user_email,
+                    });
+                  }
+                }}
+              >
+                Contact
+              </Button>
+            )}
+            <Button
+              onPress={() => {
+                setViewPost(null);
+                setTapPos(null);
+              }}
+            >
+              Close
+            </Button>
+          </Dialog.Actions>
         </Dialog>
       </Portal>
 
