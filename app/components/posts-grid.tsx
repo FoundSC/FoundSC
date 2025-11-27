@@ -9,12 +9,14 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Card, Button, IconButton, Dialog, Portal, Paragraph } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 
 // Extend Post interface to include poster email
 interface Post {
@@ -60,6 +62,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [editType, setEditType] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editContactInfo, setEditContactInfo] = useState(''); // Add state for contact info
+  const [editImageUri, setEditImageUri] = useState<string | null>(null); // Add state for image URI
 
   // Compute aspect ratio for detail image
   useEffect(() => {
@@ -130,7 +133,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setEditDescription(post.description || '');
     setEditType(post.type || '');
     setEditCategory(post.category || '');
-    setEditContactInfo(post.contact_info || ''); // ← ADD THIS
+    setEditContactInfo(post.contact_info || '');
+    setEditImageUri(post.image_url || null); // ← ADD THIS
     setEditModalVisible(true);
     setViewPost(null);
   };
@@ -144,7 +148,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       description: editDescription,
       type: editType,
       category: editCategory,
-      contact_info: editContactInfo, // ← ADD THIS
+      contact_info: editContactInfo,
+      image_url: editImageUri, // ← ADD THIS
     };
 
     onEdit && onEdit(updatedPost);
@@ -154,7 +159,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setEditDescription('');
     setEditType('');
     setEditCategory('');
-    setEditContactInfo(''); // ← ADD THIS
+    setEditContactInfo('');
+    setEditImageUri(null); // ← ADD THIS
   };
 
   const handleDeleteClick = (id: string | number) => {
@@ -234,6 +240,28 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       </TouchableOpacity>
     </View>
   );
+
+  async function pickEditImage() {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant permission to access photos');
+        return;
+      }
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets?.length) {
+        setEditImageUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error('Error picking image:', e);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -453,6 +481,22 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                 onChangeText={setEditContactInfo}
                 placeholder="Email, phone, or other contact method"
               />
+
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Image</Text>
+              {editImageUri && (
+                <Image
+                  source={{ uri: editImageUri }}
+                  style={{ width: '100%', height: 160, borderRadius: 8, marginBottom: 12 }}
+                  resizeMode="cover"
+                />
+              )}
+              <Button
+                mode="outlined"
+                onPress={pickEditImage}
+                style={{ marginBottom: 12 }}
+              >
+                {editImageUri ? 'Change Image' : 'Add Image'}
+              </Button>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={{ backgroundColor: '#fff' }}>

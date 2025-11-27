@@ -333,6 +333,7 @@ export default function App() {
         type: updatedPost.type,
         category: updatedPost.category,
         contact_info: updatedPost.contact_info,
+        image_url: updatedPost.image_url, // ← ADD THIS
       })
       .eq('id', updatedPost.id);
 
@@ -341,7 +342,6 @@ export default function App() {
       Alert.alert('Update failed', error.message);
     } else {
       Alert.alert('Success', 'Post updated successfully');
-      // Refresh posts to show updated data
       await fetchPosts({ 
         search: searchText, 
         type: filterType, 
