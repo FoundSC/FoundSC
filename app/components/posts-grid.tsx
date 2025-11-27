@@ -14,6 +14,7 @@ import { Card, Button, IconButton, Dialog, Portal, Paragraph } from 'react-nativ
 import { useAuth } from '../contexts/AuthContext';
 import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
+import { useNavigation } from '@react-navigation/native';
 
 // Extend Post interface to include poster email
 interface Post {
@@ -41,6 +42,7 @@ interface PostsGridProps {
 
 export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsGridProps) {
   const { user } = useAuth();
+  const navigation = useNavigation();
 
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -350,6 +352,29 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                     style={{ marginRight: 12 }}
                   >
                     Edit
+                  </Button>
+                )}
+                {viewPost.user_id !== user?.id && (
+                  <Button
+                    mode="contained"
+                    onPress={async () => {
+                      // Create or get conversation
+                      const { data } = await supabase.rpc('get_or_create_conversation', {
+                        user1_id: user?.id,
+                        user2_id: viewPost.user_id,
+                      });
+                      
+                      if (data) {
+                        navigation.navigate('Chat', {
+                          conversationId: data.conversation_id,
+                          otherUserId: viewPost.user_id,
+                          otherUserEmail: viewPost.user_email,
+                        });
+                      }
+                    }}
+                    style={{ marginRight: 12 }}
+                  >
+                    Contact
                   </Button>
                 )}
                 <Button
