@@ -183,9 +183,9 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={(e) => {
-          const { pageY } = e.nativeEvent;
-            setTapPos({ x: 0, y: pageY });
-            setViewPost(item);
+          const { pageY, pageX } = e.nativeEvent;
+          setTapPos({ x: pageX, y: pageY });
+          setViewPost(item);
         }}
       >
         <Card style={styles.card}>
@@ -304,121 +304,147 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
         />
       )}
 
-      {/* Details Popup (uses map abstraction, safe on web) */}
-      {viewPost && !editingPost && (
-        <View style={styles.anchorOverlay}>
-          <View
-            style={[
-              styles.anchorDetailModal,
-              tapPos ? { top: Math.max(60, tapPos.y - 180) } : { top: 80 },
-            ]}
-          >
-            <ScrollView>
-              <Text style={styles.detailTitle}>{viewPost.title}</Text>
+      {/* Details Popup using Portal Dialog */}
+      <Portal>
+        <Dialog
+          visible={!!viewPost && !editingPost}
+          onDismiss={() => {
+            setViewPost(null);
+            setTapPos(null);
+          }}
+          style={{ maxHeight: '85%', backgroundColor: '#fff' }}
+        >
+          {viewPost && (
+            <>
+              <Dialog.Title style={{ fontSize: 22, fontWeight: '700', backgroundColor: '#fff', color: '#111827' }}>
+                {viewPost.title}
+              </Dialog.Title>
+              
+              <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
+                <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
+                  {user?.id === viewPost.user_id && 
+                    viewPost.type === 'lost' && 
+                    !viewPost.description?.includes('✅ This item has been found!') && (
+                      <Button
+                        mode="contained"
+                        onPress={() => handleMarkFound(viewPost)}
+                        loading={updatingId === viewPost.id}
+                        style={{ marginTop: 8, marginBottom: 12 }}
+                        buttonColor="#16a34a"
+                      >
+                        Mark as Found
+                      </Button>
+                    )}
 
-              {user?.id === viewPost.user_id && 
- viewPost.type === 'lost' && 
- !viewPost.description?.includes('✅ This item has been found!') && (
-  <Button
-    mode="contained"
-    onPress={() => handleMarkFound(viewPost)}
-    loading={updatingId === viewPost.id}
-    style={{ marginRight: 12, marginTop: 12, marginBottom: 8 }}
-    buttonColor="#16a34a"
-  >
-    Mark as Found
-  </Button>
-)}
-
-              <Text style={styles.detailDate}>
-                {viewPost.created_at
-                  ? new Date(viewPost.created_at).toLocaleString()
-                  : ''}
-              </Text>
-
-              {(viewPost.image_url || viewPost.imageUri) && (
-                <View style={styles.imageWrapper}>
-                  <Image
-                    source={{ uri: (viewPost.image_url || viewPost.imageUri) as string }}
-                    style={[
-                      styles.detailImage,
-                      imageAspect ? { aspectRatio: imageAspect } : { height: 260 },
-                    ]}
-                    resizeMode="contain"
-                  />
-                </View>
-              )}
-
-              <Text style={styles.detailLabel}>Type</Text>
-              <Text style={styles.detailValue}>{viewPost.type || '-'}</Text>
-
-              <Text style={styles.detailLabel}>Category</Text>
-              <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
-
-              <Text style={styles.detailLabel}>Description</Text>
-              {viewPost.description?.includes('✅ This item has been found!') ? (
-                <View>
-                  <Text style={styles.detailBody}>
-                    {viewPost.description.replace('\n✅ This item has been found!', '')}
+                  <Text style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+                    {viewPost.created_at
+                      ? new Date(viewPost.created_at).toLocaleString()
+                      : ''}
                   </Text>
-                  <View style={{ 
-                    backgroundColor: '#dcfce7', 
-                    borderLeftWidth: 4, 
-                    borderLeftColor: '#16a34a', 
-                    padding: 12, 
-                    marginTop: 16, 
-                    borderRadius: 8 
-                  }}>
-                    <Text style={{ 
-                      fontSize: 16, 
-                      fontWeight: 'bold', 
-                      color: '#16a34a', 
-                      letterSpacing: 0.5 
+
+                  {(viewPost.image_url || viewPost.imageUri) && (
+                    <View style={{
+                      width: '100%',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: 12,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      marginBottom: 18,
                     }}>
-                      ✅ This item has been found!
+                      <Image
+                        source={{ uri: (viewPost.image_url || viewPost.imageUri) as string }}
+                        style={[
+                          { width: '100%', maxHeight: 420 },
+                          imageAspect ? { aspectRatio: imageAspect } : { height: 260 },
+                        ]}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
+
+                  <Text style={styles.detailLabel}>Type</Text>
+                  <Text style={styles.detailValue}>{viewPost.type || '-'}</Text>
+
+                  <Text style={styles.detailLabel}>Category</Text>
+                  <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
+
+                  <Text style={styles.detailLabel}>Description</Text>
+                  {viewPost.description?.includes('✅ This item has been found!') ? (
+                    <View>
+                      <Text style={styles.detailBody}>
+                        {viewPost.description.replace('\n✅ This item has been found!', '')}
+                      </Text>
+                      <View style={{ 
+                        backgroundColor: '#dcfce7', 
+                        borderLeftWidth: 4, 
+                        borderLeftColor: '#16a34a', 
+                        padding: 12, 
+                        marginTop: 16, 
+                        borderRadius: 8 
+                      }}>
+                        <Text style={{ 
+                          fontSize: 16, 
+                          fontWeight: 'bold', 
+                          color: '#16a34a', 
+                          letterSpacing: 0.5 
+                        }}>
+                          ✅ This item has been found!
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.detailBody}>
+                      {viewPost.description || 'No description provided.'}
                     </Text>
-                  </View>
-                </View>
-              ) : (
-                <Text style={styles.detailBody}>
-                  {viewPost.description || 'No description provided.'}
-                </Text>
-              )}
+                  )}
 
-              <Text style={styles.detailLabel}>Location</Text>
-              {viewPost.latitude && viewPost.longitude ? (
-                <Text style={styles.detailValue}>
-                  {viewPost.latitude.toFixed(5)}, {viewPost.longitude.toFixed(5)}
-                </Text>
-              ) : (
-                <Text style={styles.detailValue}>No coordinates</Text>
-              )}
+                  <Text style={styles.detailLabel}>Location</Text>
+                  {viewPost.latitude && viewPost.longitude ? (
+                    <Text style={styles.detailValue}>
+                      {viewPost.latitude.toFixed(5)}, {viewPost.longitude.toFixed(5)}
+                    </Text>
+                  ) : (
+                    <Text style={styles.detailValue}>No coordinates</Text>
+                  )}
 
-              <Text style={styles.detailLabel}>Contact Information</Text>
-              <Text style={styles.detailValue}>
-                {viewPost.contact_info ? viewPost.contact_info : 'Not available'}
-              </Text>
+                  <Text style={styles.detailLabel}>Contact Information</Text>
+                  <Text style={styles.detailValue}>
+                    {viewPost.contact_info ? viewPost.contact_info : 'Not available'}
+                  </Text>
 
-              {viewPost.latitude && viewPost.longitude ? (
-                <View style={styles.mapBlock}>
-                  <PostsMapView
-                    posts={[viewPost]}
-                    initialRegion={{
-                      latitude: viewPost.latitude,
-                      longitude: viewPost.longitude,
-                      latitudeDelta: 0.005,
-                      longitudeDelta: 0.005,
-                    }}
-                    interactive={false}
-                    height={220}
-                  />
-                  <Text style={styles.mapCaption}>Item location</Text>
-                </View>
-              ) : (
-                <Text style={styles.mapMissing}>Item not on map</Text>
-              )}
+                  {viewPost.latitude && viewPost.longitude ? (
+                    <View style={{
+                      width: '100%',
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      marginTop: 18,
+                      backgroundColor: '#eef2ff',
+                      borderWidth: 1,
+                      borderColor: '#c7d2fe',
+                    }}>
+                      <PostsMapView
+                        posts={[viewPost]}
+                        initialRegion={{
+                          latitude: viewPost.latitude,
+                          longitude: viewPost.longitude,
+                          latitudeDelta: 0.005,
+                          longitudeDelta: 0.005,
+                        }}
+                        interactive={false}
+                        height={220}
+                      />
+                      <Text style={styles.mapCaption}>Item location</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ marginTop: 18, fontSize: 14, fontStyle: 'italic', color: '#666' }}>
+                      Item not on map
+                    </Text>
+                  )}
+                </ScrollView>
+              </Dialog.ScrollArea>
 
-              <View style={styles.detailActions}>
+              <Dialog.Actions style={{ backgroundColor: '#fff' }}>
                 {user?.id === viewPost.user_id && (
                   <Button
                     mode="contained"
@@ -427,7 +453,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                       setViewPost(null);
                       setTapPos(null);
                     }}
-                    style={{ marginRight: 12 }}
                   >
                     Edit
                   </Button>
@@ -436,7 +461,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                   <Button
                     mode="contained"
                     onPress={async () => {
-                      // Create or get conversation
                       const { data } = await supabase.rpc('get_or_create_conversation', {
                         user1_id: user?.id,
                         user2_id: viewPost.user_id,
@@ -450,13 +474,11 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                         });
                       }
                     }}
-                    style={{ marginRight: 12 }}
                   >
                     Contact
                   </Button>
                 )}
                 <Button
-                  mode="outlined"
                   onPress={() => {
                     setViewPost(null);
                     setTapPos(null);
@@ -464,11 +486,11 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                 >
                   Close
                 </Button>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      )}
+              </Dialog.Actions>
+            </>
+          )}
+        </Dialog>
+      </Portal>
 
       {/* Edit Modal */}
       <Portal>
@@ -597,40 +619,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 11, color: '#555', marginBottom: 2 },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyText: { fontSize: 14, color: '#666' },
-
-  // Details modal anchoring
-  anchorOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    zIndex: 1000,
-  },
-  anchorDetailModal: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
-    maxHeight: '72%',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  imageWrapper: {
-    width: '100%',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    marginBottom: 18,
-  },
-  detailImage: { width: '100%', maxHeight: 420 },
-  detailTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  detailDate: { fontSize: 12, color: '#666', marginBottom: 16 },
   detailLabel: {
     fontSize: 13,
     fontWeight: '600',
@@ -642,16 +630,6 @@ const styles = StyleSheet.create({
   },
   detailValue: { fontSize: 15, color: '#111827' },
   detailBody: { fontSize: 15, lineHeight: 22, color: '#333', marginTop: 2 },
-
-  mapBlock: {
-    width: '100%',
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginTop: 18,
-    backgroundColor: '#eef2ff',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-  },
   mapCaption: {
     position: 'absolute',
     bottom: 6,
@@ -663,7 +641,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 12,
   },
-  mapMissing: { marginTop: 18, fontSize: 14, fontStyle: 'italic', color: '#666' },
-
-  detailActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 28 },
 });
