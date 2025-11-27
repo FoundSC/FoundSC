@@ -8,10 +8,12 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Card, Button, IconButton, Dialog, Portal, Paragraph } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
-import PostsMapView from './map-view'; 
+import PostsMapView from './map-view';
+import { supabase } from '../lib/supabase';
 
 // Extend Post interface to include poster email
 interface Post {
@@ -26,16 +28,18 @@ interface Post {
   user_id?: string;
   latitude?: number;
   longitude?: number;
-  user_email?: string | null; 
+  user_email?: string | null;
+  contact_info?: string | null; 
 }
 
 interface PostsGridProps {
   posts: Post[];
   onEdit?: (post: Post) => void;
   onDelete?: (id: string | number) => void;
+  onRefresh?: () => void;
 }
 
-export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
+export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsGridProps) {
   const { user } = useAuth();
 
   const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -45,6 +49,15 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
   const [viewPost, setViewPost] = useState<Post | null>(null);
   const [tapPos, setTapPos] = useState<{ x: number; y: number } | null>(null);
   const [imageAspect, setImageAspect] = useState<number | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | number | null>(null);
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editType, setEditType] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editContactInfo, setEditContactInfo] = useState(''); // Add state for contact info
 
   // Compute aspect ratio for detail image
   useEffect(() => {
@@ -62,13 +75,84 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
     }
   }, [viewPost]);
 
+  const handleMarkFound = async (post: Post) => {
+    if (!user || user.id !== post.user_id) {
+      Alert.alert('Not allowed', 'You can only mark your own posts as found.');
+      return;
+    }
+    if (post.type === 'found') {
+      Alert.alert('Already found', 'This post is already marked as found.');
+      return;
+    }
+
+    setUpdatingId(post.id!);
+    const { error } = await supabase
+      .from('posts')
+      .update({ type: 'found' })
+      .eq('id', post.id);
+
+    if (error) {
+      Alert.alert('Update failed', error.message);
+    } else {
+      if (viewPost?.id === post.id) {
+        setViewPost({ ...viewPost, type: 'found' });
+      }
+      onRefresh && onRefresh();
+    }
+    setUpdatingId(null);
+  };
+
+  const renderStatusBadge = (type?: string) => {
+    if (type === 'lost')
+      return (
+        <View style={{ alignSelf: 'flex-start', backgroundColor: '#dc2626', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 }}>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', letterSpacing: 0.5 }}>LOST</Text>
+        </View>
+      );
+    if (type === 'found')
+      return (
+        <View style={{ alignSelf: 'flex-start', backgroundColor: '#16a34a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 }}>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', letterSpacing: 0.5 }}>FOUND</Text>
+        </View>
+      );
+    return null;
+  };
+
   const handleEditClick = (post: Post) => {
     if (!user || user.id !== post.user_id) {
       Alert.alert('Not allowed', 'You can only edit your own posts.');
       return;
     }
     setEditingPost(post);
-    onEdit && onEdit(post);
+    setEditTitle(post.title || '');
+    setEditDescription(post.description || '');
+    setEditType(post.type || '');
+    setEditCategory(post.category || '');
+    setEditContactInfo(post.contact_info || ''); // ← ADD THIS
+    setEditModalVisible(true);
+    setViewPost(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingPost) return;
+
+    const updatedPost = {
+      ...editingPost,
+      title: editTitle,
+      description: editDescription,
+      type: editType,
+      category: editCategory,
+      contact_info: editContactInfo, // ← ADD THIS
+    };
+
+    onEdit && onEdit(updatedPost);
+    setEditModalVisible(false);
+    setEditingPost(null);
+    setEditTitle('');
+    setEditDescription('');
+    setEditType('');
+    setEditCategory('');
+    setEditContactInfo(''); // ← ADD THIS
   };
 
   const handleDeleteClick = (id: string | number) => {
@@ -178,6 +262,19 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
           >
             <ScrollView>
               <Text style={styles.detailTitle}>{viewPost.title}</Text>
+
+              {user?.id === viewPost.user_id && viewPost.type === 'lost' && (
+                <Button
+                  mode="contained"
+                  onPress={() => handleMarkFound(viewPost)}
+                  loading={updatingId === viewPost.id}
+                  style={{ alignSelf: 'flex-start', marginTop: 12, marginBottom: 8, borderRadius: 20, paddingHorizontal: 18 }}
+                  buttonColor="#16a34a"
+                >
+                  Mark as Found
+                </Button>
+              )}
+
               <Text style={styles.detailDate}>
                 {viewPost.created_at
                   ? new Date(viewPost.created_at).toLocaleString()
@@ -219,7 +316,7 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
 
               <Text style={styles.detailLabel}>Contact Information</Text>
               <Text style={styles.detailValue}>
-                {viewPost.user_email ? viewPost.user_email : 'Not available'}
+                {viewPost.contact_info ? viewPost.contact_info : 'Not available'}
               </Text>
 
               {viewPost.latitude && viewPost.longitude ? (
@@ -270,8 +367,81 @@ export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
         </View>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Edit Modal */}
       <Portal>
+        <Dialog
+          visible={editModalVisible}
+          onDismiss={() => setEditModalVisible(false)}
+          style={{ maxHeight: '80%', backgroundColor: '#fff' }}
+        >
+          <Dialog.Title style={{ backgroundColor: '#fff', color: '#111827' }}>Edit Post</Dialog.Title>
+          <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
+            <ScrollView contentContainerStyle={{ backgroundColor: '#fff' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Title</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 12, backgroundColor: '#fff' }}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="Post title"
+              />
+
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Description</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 12, backgroundColor: '#fff', height: 100, textAlignVertical: 'top' }}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Post description"
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Type</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <Button
+                  mode={editType === 'lost' ? 'contained' : 'outlined'}
+                  onPress={() => setEditType('lost')}
+                  style={{ flex: 1 }}
+                >
+                  Lost
+                </Button>
+                <Button
+                  mode={editType === 'found' ? 'contained' : 'outlined'}
+                  onPress={() => setEditType('found')}
+                  style={{ flex: 1 }}
+                >
+                  Found
+                </Button>
+              </View>
+
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Category</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 12, backgroundColor: '#fff' }}
+                value={editCategory}
+                onChangeText={setEditCategory}
+                placeholder="e.g. Electronics, Pets"
+              />
+
+              <Text style={{ fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' }}>Contact Information (Optional)</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 12, backgroundColor: '#fff' }}
+                value={editContactInfo}
+                onChangeText={setEditContactInfo}
+                placeholder="Email, phone, or other contact method"
+              />
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            <Button onPress={() => setEditModalVisible(false)}>Cancel</Button>
+            <Button
+              onPress={handleSaveEdit}
+              disabled={!editTitle.trim() || !editCategory.trim()}
+            >
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
         <Dialog
           visible={deleteDialogVisible}
           onDismiss={() => setDeleteDialogVisible(false)}

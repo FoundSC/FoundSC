@@ -590,6 +590,7 @@ export default function App() {
                 posts={posts}
                 onEdit={handleEditPost}
                 onDelete={handleDeletePost}
+                onRefresh={() => fetchPosts({ search: searchText, type: filterType, category: filterCategory, startDate, endDate })}
               />
             ) : (
               <PostsMapView

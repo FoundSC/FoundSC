@@ -84,7 +84,12 @@ export default function MyPostsScreen({ navigation }: any) {
             </Button>
           </View>
         ) : (
-          <PostsGrid posts={posts} onEdit={handleEdit} onDelete={handleDelete} />
+          <PostsGrid 
+            posts={posts} 
+            onEdit={handleEdit} 
+            onDelete={handleDelete} 
+            onRefresh={fetchMyPosts} 
+          />
         )}
       </ScrollView>
     </View>
