@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Text } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, Alert } from 'react-native';
 import { Button } from 'react-native-paper';
 import PostsGrid from '../components/posts-grid';
 import { supabase } from '../lib/supabase';
@@ -32,16 +32,28 @@ export default function MyPostsScreen({ navigation }: any) {
     fetchMyPosts();
   }, [user]);
 
-  const handleEdit = async (id: string, updatedPost: any) => {
+  const handleEdit = async (updatedPost: any) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in');
+      return;
+    }
+
     const { error } = await supabase
       .from('posts')
-      .update(updatedPost)
-      .eq('id', id);
+      .update({
+        title: updatedPost.title,
+        description: updatedPost.description,
+        type: updatedPost.type,
+        category: updatedPost.category,
+        contact_info: updatedPost.contact_info,
+      })
+      .eq('id', updatedPost.id);
 
     if (error) {
-      console.error('Error editing post:', error);
+      Alert.alert('Update failed', error.message);
     } else {
-      fetchMyPosts();
+      Alert.alert('Success', 'Post updated successfully');
+      fetchMyPosts(); // Refresh the list
     }
   };
 

@@ -313,55 +313,42 @@ export default function App() {
     }
   };
 
-  // Edit an existing post (optionally updates type, category, image)
-  const handleEditPost = async (id, title, description, type, category, imageCandidate) => {
-    if (!title || !description) {
-      console.error('Title or content is missing');
+  // Edit an existing post
+  const handleEditPost = async (updatedPost) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to edit posts');
       return;
     }
 
-    let image_url_to_set = undefined;
-    // If an image candidate is provided and looks like a local uri, upload first
-    if (imageCandidate && typeof imageCandidate === 'string') {
-      const isRemote = imageCandidate.startsWith('http://') || imageCandidate.startsWith('https://');
-      if (!isRemote) {
-        image_url_to_set = await uploadImageIfNeeded(imageCandidate);
-      } else {
-        image_url_to_set = imageCandidate;
-      }
+    if (!updatedPost.title?.trim() || !updatedPost.category?.trim()) {
+      Alert.alert('Error', 'Title and category are required');
+      return;
     }
-
-    const updatePayload = { title, description };
-    if (typeof type === 'string' && type.trim()) updatePayload.type = type.toLowerCase().trim();
-    if (typeof category === 'string' && category.trim()) updatePayload.category = category.trim();
-    if (image_url_to_set) updatePayload.image_url = image_url_to_set;
 
     const { error } = await supabase
       .from('posts')
-      .update(updatePayload)
-      .eq('id', id);
+      .update({
+        title: updatedPost.title,
+        description: updatedPost.description,
+        type: updatedPost.type,
+        category: updatedPost.category,
+        contact_info: updatedPost.contact_info,
+      })
+      .eq('id', updatedPost.id);
 
     if (error) {
       console.error('Error editing post:', error);
+      Alert.alert('Update failed', error.message);
     } else {
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === id
-            ? { ...post, ...updatePayload }
-            : post
-        )
-      );
-      try {
-        const existing = posts.find((p) => p.id === id) || {};
-        const finalType = (typeof type === 'string' && type.trim()) ? type.toLowerCase().trim() : (existing.type || '');
-        if (finalType === 'lost') {
-          const finalCategory = (typeof category === 'string' && category.trim()) ? category.trim() : (existing.category || null);
-          const kws = extractKeywords(`${title} ${description}`).slice(0, 5);
-          await setLostPostMatchRules(id, { keywords: kws, category: finalCategory || null });
-        }
-      } catch (e) {
-        console.warn('[match] rules upsert (edit) failed', e?.message || e);
-      }
+      Alert.alert('Success', 'Post updated successfully');
+      // Refresh posts to show updated data
+      await fetchPosts({ 
+        search: searchText, 
+        type: filterType, 
+        category: filterCategory, 
+        startDate, 
+        endDate 
+      });
     }
   };
 
