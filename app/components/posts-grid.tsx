@@ -85,22 +85,24 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       Alert.alert('Not allowed', 'You can only mark your own posts as found.');
       return;
     }
-    if (post.type === 'found') {
-      Alert.alert('Already found', 'This post is already marked as found.');
-      return;
-    }
 
     setUpdatingId(post.id!);
     const { error } = await supabase
       .from('posts')
-      .update({ type: 'found' })
+      .update({ 
+        description: `${post.description || ''}\n✅ This item has been found!`
+      })
       .eq('id', post.id);
 
     if (error) {
       Alert.alert('Update failed', error.message);
     } else {
+      Alert.alert('Success', 'Post updated with found status');
       if (viewPost?.id === post.id) {
-        setViewPost({ ...viewPost, type: 'found' });
+        setViewPost({ 
+          ...viewPost, 
+          description: `${viewPost.description || ''}\n✅ This item has been found!`
+        });
       }
       onRefresh && onRefresh();
     }
@@ -223,8 +225,29 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                 resizeMode="cover"
               />
             )}
+            
+            {/* Show "Found" badge if description contains the found message */}
+            {item.description?.includes('✅ This item has been found!') && (
+              <View style={{ 
+                backgroundColor: '#dcfce7', 
+                borderLeftWidth: 3, 
+                borderLeftColor: '#16a34a', 
+                padding: 8, 
+                marginBottom: 8, 
+                borderRadius: 6 
+              }}>
+                <Text style={{ 
+                  fontSize: 11, 
+                  fontWeight: 'bold', 
+                  color: '#16a34a', 
+                }}>
+                  ✅ This item has been found!
+                </Text>
+              </View>
+            )}
+            
             <Text style={styles.content} numberOfLines={4}>
-              {item.description}
+              {item.description?.replace('\n✅ This item has been found!', '')}
             </Text>
             <Text style={styles.meta}>Type: {item.type || '-'}</Text>
             <Text style={styles.meta}>Category: {item.category || '-'}</Text>
@@ -293,17 +316,19 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
             <ScrollView>
               <Text style={styles.detailTitle}>{viewPost.title}</Text>
 
-              {user?.id === viewPost.user_id && viewPost.type === 'lost' && (
-                <Button
-                  mode="contained"
-                  onPress={() => handleMarkFound(viewPost)}
-                  loading={updatingId === viewPost.id}
-                  style={{ alignSelf: 'flex-start', marginTop: 12, marginBottom: 8, borderRadius: 20, paddingHorizontal: 18 }}
-                  buttonColor="#16a34a"
-                >
-                  Mark as Found
-                </Button>
-              )}
+              {user?.id === viewPost.user_id && 
+ viewPost.type === 'lost' && 
+ !viewPost.description?.includes('✅ This item has been found!') && (
+  <Button
+    mode="contained"
+    onPress={() => handleMarkFound(viewPost)}
+    loading={updatingId === viewPost.id}
+    style={{ marginRight: 12, marginTop: 12, marginBottom: 8 }}
+    buttonColor="#16a34a"
+  >
+    Mark as Found
+  </Button>
+)}
 
               <Text style={styles.detailDate}>
                 {viewPost.created_at
@@ -331,9 +356,34 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
               <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
 
               <Text style={styles.detailLabel}>Description</Text>
-              <Text style={styles.detailBody}>
-                {viewPost.description || 'No description provided.'}
-              </Text>
+              {viewPost.description?.includes('✅ This item has been found!') ? (
+                <View>
+                  <Text style={styles.detailBody}>
+                    {viewPost.description.replace('\n✅ This item has been found!', '')}
+                  </Text>
+                  <View style={{ 
+                    backgroundColor: '#dcfce7', 
+                    borderLeftWidth: 4, 
+                    borderLeftColor: '#16a34a', 
+                    padding: 12, 
+                    marginTop: 16, 
+                    borderRadius: 8 
+                  }}>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      fontWeight: 'bold', 
+                      color: '#16a34a', 
+                      letterSpacing: 0.5 
+                    }}>
+                      ✅ This item has been found!
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.detailBody}>
+                  {viewPost.description || 'No description provided.'}
+                </Text>
+              )}
 
               <Text style={styles.detailLabel}>Location</Text>
               {viewPost.latitude && viewPost.longitude ? (
