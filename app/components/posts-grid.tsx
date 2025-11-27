@@ -1,436 +1,380 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  Image,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { Card, Button, Dialog, IconButton } from 'react-native-paper';
-import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Card, Button, IconButton, Dialog, Portal, Paragraph } from 'react-native-paper';
+import { useAuth } from '../contexts/AuthContext';
+import PostsMapView from './map-view'; 
 
-
-// Define Post type
-type Post = {
-  id: string | number;
-  title: string;
-  description: string;
-  created_at?: string;
+// Extend Post interface to include poster email
+interface Post {
+  id?: string | number;
+  title?: string;
+  description?: string;
   type?: string;
   category?: string;
-  imageUri?: string;
-  image_url?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  user_id?: string; // Added user_id to match the database
-};
-
-// Define component props
-interface PostsGridProps {
-  posts: Post[];
-  onEdit: (
-    id: string | number,
-    title: string,
-    description: string,
-    type?: string,
-    category?: string,
-    imageCandidate?: string,
-  ) => void;
-  onDelete: (id: string | number) => void;
+  image_url?: string | null;
+  imageUri?: string | null;
+  created_at?: string;
+  user_id?: string;
+  latitude?: number;
+  longitude?: number;
+  user_email?: string | null; 
 }
 
-// Main PostsGrid component
+interface PostsGridProps {
+  posts: Post[];
+  onEdit?: (post: Post) => void;
+  onDelete?: (id: string | number) => void;
+}
+
 export default function PostsGrid({ posts, onEdit, onDelete }: PostsGridProps) {
+  const { user } = useAuth();
+
   const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editContent, setEditContent] = useState('');
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-  const [postToDelete, setPostToDelete] = useState<string | null>(null);
-  
-  // Handle edit button click
-  const handleEditClick = (post: Post) => {
-    setEditingPost(post);
-    setEditTitle(post.title);
-    setEditContent(post.description ?? '');
-  };
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
-  // Handle edit form submission
-  const handleEditSubmit = () => {
-    if (
-      editingPost &&
-      editTitle.trim() &&
-      editContent.trim()
-    ) {
-      // Prepare updated fields
-      const updatedType = editingPost.type || undefined;
-      const updatedCategory = editingPost.category || undefined;
-      const imageToPersist = (editImageUri || editingPost.imageUri || editingPost.image_url || undefined) as string | undefined;
-      
-      // Call onEdit prop with updated data
-      onEdit(
-        editingPost.id,
-        editTitle,
-        editContent,
-        updatedType as any,
-        updatedCategory as any,
-        imageToPersist as any,
+  const [viewPost, setViewPost] = useState<Post | null>(null);
+  const [tapPos, setTapPos] = useState<{ x: number; y: number } | null>(null);
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
+
+  // Compute aspect ratio for detail image
+  useEffect(() => {
+    if (viewPost && (viewPost.image_url || viewPost.imageUri)) {
+      const uri = (viewPost.image_url || viewPost.imageUri) as string;
+      Image.getSize(
+        uri,
+        (w, h) => {
+          if (w > 0 && h > 0) setImageAspect(w / h);
+        },
+        () => setImageAspect(null)
       );
-
-      // Reset editing state
-      setEditingPost(null);
-      setEditTitle('');
-      setEditContent('');
-      setEditImageUri(null);
+    } else {
+      setImageAspect(null);
     }
+  }, [viewPost]);
+
+  const handleEditClick = (post: Post) => {
+    if (!user || user.id !== post.user_id) {
+      Alert.alert('Not allowed', 'You can only edit your own posts.');
+      return;
+    }
+    setEditingPost(post);
+    onEdit && onEdit(post);
   };
 
-  // Handle delete button click
-  const handleDeleteClick = (postId: string) => {
-    setPostToDelete(postId);
+  const handleDeleteClick = (id: string | number) => {
+    setDeleteTargetId(id);
     setDeleteDialogVisible(true);
   };
 
-  // Confirm deletion
-  const handleDeleteConfirm = () => {
-    if (postToDelete) {
-      onDelete(postToDelete);
-      setPostToDelete(null);
+  const confirmDelete = () => {
+    if (deleteTargetId != null) {
+      onDelete && onDelete(deleteTargetId);
     }
     setDeleteDialogVisible(false);
+    setDeleteTargetId(null);
   };
 
-  // State for edited image URI
-  const [editImageUri, setEditImageUri] = useState<string | null>(null);
-
-// Function to pick new image
-const pickEditImage = async () => {
-  try {
-    console.log('[edit] request media permission');
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    // Check for permission
-    if (status !== 'granted') {
-      alert('Sorry, we need media library permissions to change the image.');
-      console.warn('[edit] permission denied');
-      return;
-    }
-
-    // Launch image library
-    console.log('[edit] opening image library');
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    // Handle cancellation
-    if (result.canceled) {
-      console.log('[edit] selection canceled');
-      return;
-    }
-    // Set selected image URI
-    console.log('[edit] result', !!result.assets, result.assets?.length);
-    // Check if assets are available
-    if (result.assets && result.assets.length > 0) {
-      const uri = result.assets[0].uri;
-      console.log('[edit] selected uri', uri);
-      setEditImageUri(uri);
-      setEditingPost((prev) => (prev ? { ...prev, imageUri: uri } : prev));
-      console.log('[edit] preview set');
-    } else {
-      console.log('[edit] no assets returned');
-    }
-  // Handle errors
-  } catch (e) {
-    console.error('[edit] picker error:', (e as any)?.message || e);
-  }
-};
-  // Get current user
-  const { user } = useAuth();
-
-  // Render individual post card
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.cardContainer}>
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.title} numberOfLines={2}>
-              {item.title}
-            </Text>
-            {user?.id === item.user_id && (
-              <View style={styles.actions}>
-                <IconButton icon="pencil" size={18} onPress={() => handleEditClick(item)} />
-                <IconButton icon="delete" size={18} onPress={() => handleDeleteClick(item.id as any)} />
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.date}>
-            {/* Format and display creation date */}
-            {item.created_at
-              ? new Date(item.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })
-              : ''}
-          </Text>
-          {/* Display post image if available */}
-          {(item.image_url || item.imageUri) ? (
-            <Image
-              source={{ uri: (item.image_url || item.imageUri) as string }}
-              style={{
-                width: '100%',
-                height: 160,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-              resizeMode="cover"
-            />
-          ) : null}
-          {/* Display post description and metadata */}
-          <Text style={styles.content} numberOfLines={4}>
-            {item.description}
-          </Text>
-          <Text style={styles.meta}>Type: {item.type || '-'}</Text>
-          <Text style={styles.meta}>Category: {item.category || '-'}</Text>
-          {item.latitude && item.longitude ? (
-            <View style={styles.locationContainer}>
-              <Text style={styles.locationIcon}>📍</Text>
-              <Text style={styles.locationText}>
-                {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={(e) => {
+          const { pageY } = e.nativeEvent;
+            setTapPos({ x: 0, y: pageY });
+            setViewPost(item);
+        }}
+      >
+        <Card style={styles.card}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title} numberOfLines={2}>
+                {item.title}
               </Text>
+              {user?.id === item.user_id && (
+                <View style={styles.actions}>
+                  <IconButton
+                    icon="pencil"
+                    size={18}
+                    onPress={() => handleEditClick(item)}
+                  />
+                  <IconButton
+                    icon="delete"
+                    size={18}
+                    onPress={() => handleDeleteClick(item.id as any)}
+                  />
+                </View>
+              )}
             </View>
-          ) : (
-            <Text style={styles.meta}>Location: Not set</Text>
-          )}
-
-        </Card.Content>
-      </Card>
+            <Text style={styles.date}>
+              {item.created_at
+                ? new Date(item.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : ''}
+            </Text>
+            {(item.image_url || item.imageUri) && (
+              <Image
+                source={{ uri: (item.image_url || item.imageUri) as string }}
+                style={styles.thumbnailImage}
+                resizeMode="cover"
+              />
+            )}
+            <Text style={styles.content} numberOfLines={4}>
+              {item.description}
+            </Text>
+            <Text style={styles.meta}>Type: {item.type || '-'}</Text>
+            <Text style={styles.meta}>Category: {item.category || '-'}</Text>
+            {item.latitude && item.longitude ? (
+              <Text style={styles.meta}>
+                📍 {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+              </Text>
+            ) : (
+              <Text style={styles.meta}>Location: Not set</Text>
+            )}
+          </Card.Content>
+        </Card>
+      </TouchableOpacity>
     </View>
   );
 
-  // Handle empty state
-  if (posts.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>
-            No posts yet. Click "Add Post" to create your first post.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // Main render
   return (
     <View style={styles.container}>
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => String(item.id)}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
-        scrollEnabled={false}
-      />
+      {posts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No posts yet.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={renderPost}
+          keyExtractor={(item) => String(item.id)}
+          numColumns={2}
+          contentContainerStyle={styles.listContent}
+          columnWrapperStyle={styles.row}
+          scrollEnabled={false}
+        />
+      )}
 
-      {/* Edit Post Modal */}
-      {editingPost && (
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}
+      {/* Details Popup (uses map abstraction, safe on web) */}
+      {viewPost && !editingPost && (
+        <View style={styles.anchorOverlay}>
+          <View
+            style={[
+              styles.anchorDetailModal,
+              tapPos ? { top: Math.max(60, tapPos.y - 180) } : { top: 80 },
+            ]}
           >
-            <View style={styles.modalContent}>
-              <ScrollView>
-                <Text style={styles.modalTitle}>Edit Post</Text>
-                <Text style={styles.modalDescription}>Make changes to your post.</Text>
+            <ScrollView>
+              <Text style={styles.detailTitle}>{viewPost.title}</Text>
+              <Text style={styles.detailDate}>
+                {viewPost.created_at
+                  ? new Date(viewPost.created_at).toLocaleString()
+                  : ''}
+              </Text>
 
-                {/* Title */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Title</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter post title"
-                    value={editTitle}
-                    onChangeText={setEditTitle}
-                  />
-                </View>
-
-                {/* Description */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Description</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Write your post description..."
-                    value={editContent}
-                    onChangeText={setEditContent}
-                    multiline
-                  />
-                </View>
-
-                {/* Type Dropdown */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Type</Text>
-                  <View style={styles.dropdownContainer}>
-                    <Picker
-                      selectedValue={editingPost.type || 'Lost'}
-                      onValueChange={(value) =>
-                        setEditingPost((prev) => (prev ? { ...prev, type: value } : prev))
-                      }
-                      style={styles.dropdown}
-                    >
-                      <Picker.Item label="Lost" value="Lost" />
-                      <Picker.Item label="Found" value="Found" />
-                    </Picker>
-                  </View>
-                </View>
-
-                {/* Category Dropdown */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Category</Text>
-                  <View style={styles.dropdownContainer}>
-                    <Picker
-                      selectedValue={editingPost.category || 'Other'}
-                      onValueChange={(value) =>
-                        setEditingPost((prev) => (prev ? { ...prev, category: value } : prev))
-                      }
-                      style={styles.dropdown}
-                    >
-                      {/* Category options */}
-                      <Picker.Item label="Electronics" value="Electronics" />
-                      <Picker.Item label="Pets" value="Pets" />
-                      <Picker.Item label="Accessories" value="Accessories" />
-                      <Picker.Item label="Clothing" value="Clothing" />
-                      <Picker.Item label="Other" value="Other" />
-                    </Picker>
-                  </View>
-                </View>
-
-                {/* Image Preview */}
-                {(editingPost.imageUri || editingPost.image_url) ? (
+              {(viewPost.image_url || viewPost.imageUri) && (
+                <View style={styles.imageWrapper}>
                   <Image
-                    source={{ uri: (editingPost.imageUri || editingPost.image_url) as string }}
-                    style={{
-                      width: '100%',
-                      height: 160,
-                      borderRadius: 8,
-                      marginBottom: 10,
-                    }}
-                    resizeMode="cover"
+                    source={{ uri: (viewPost.image_url || viewPost.imageUri) as string }}
+                    style={[
+                      styles.detailImage,
+                      imageAspect ? { aspectRatio: imageAspect } : { height: 260 },
+                    ]}
+                    resizeMode="contain"
                   />
-                ) : null}
+                </View>
+              )}
 
-                {/* Change Image Button */}
-                <Button
-                  mode="outlined"
-                  onPress={pickEditImage}
-                  style={{ marginBottom: 12 }}
-                >
-                  Change Image
-                </Button>
+              <Text style={styles.detailLabel}>Type</Text>
+              <Text style={styles.detailValue}>{viewPost.type || '-'}</Text>
 
-                {/* Actions */}
-                <View style={styles.modalActions}>
-                  <Button mode="outlined" onPress={() => setEditingPost(null)} style={styles.button}>
-                    Cancel
-                  </Button>
+              <Text style={styles.detailLabel}>Category</Text>
+              <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
+
+              <Text style={styles.detailLabel}>Description</Text>
+              <Text style={styles.detailBody}>
+                {viewPost.description || 'No description provided.'}
+              </Text>
+
+              <Text style={styles.detailLabel}>Location</Text>
+              {viewPost.latitude && viewPost.longitude ? (
+                <Text style={styles.detailValue}>
+                  {viewPost.latitude.toFixed(5)}, {viewPost.longitude.toFixed(5)}
+                </Text>
+              ) : (
+                <Text style={styles.detailValue}>No coordinates</Text>
+              )}
+
+              <Text style={styles.detailLabel}>Contact Information</Text>
+              <Text style={styles.detailValue}>
+                {viewPost.user_email ? viewPost.user_email : 'Not available'}
+              </Text>
+
+              {viewPost.latitude && viewPost.longitude ? (
+                <View style={styles.mapBlock}>
+                  <PostsMapView
+                    posts={[viewPost]}
+                    initialRegion={{
+                      latitude: viewPost.latitude,
+                      longitude: viewPost.longitude,
+                      latitudeDelta: 0.005,
+                      longitudeDelta: 0.005,
+                    }}
+                    interactive={false}
+                    height={220}
+                  />
+                  <Text style={styles.mapCaption}>Item location</Text>
+                </View>
+              ) : (
+                <Text style={styles.mapMissing}>Item not on map</Text>
+              )}
+
+              <View style={styles.detailActions}>
+                {user?.id === viewPost.user_id && (
                   <Button
                     mode="contained"
-                    onPress={handleEditSubmit}
-                    style={styles.button}
+                    onPress={() => {
+                      handleEditClick(viewPost);
+                      setViewPost(null);
+                      setTapPos(null);
+                    }}
+                    style={{ marginRight: 12 }}
                   >
-                    Save Changes
+                    Edit
                   </Button>
-                </View>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
+                )}
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    setViewPost(null);
+                    setTapPos(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </View>
+            </ScrollView>
+          </View>
         </View>
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
-        <Dialog.Title>Are you sure?</Dialog.Title>
-        <Dialog.Content>
-          <Text>This action cannot be undone. This will permanently delete your post.</Text>
-        </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={() => setDeleteDialogVisible(false)}>Cancel</Button>
-          <Button onPress={handleDeleteConfirm}>Delete</Button>
-        </Dialog.Actions>
-      </Dialog>
+      <Portal>
+        <Dialog
+          visible={deleteDialogVisible}
+          onDismiss={() => setDeleteDialogVisible(false)}
+        >
+          <Dialog.Title>Delete Post</Dialog.Title>
+          <Dialog.Content>
+            <Paragraph>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteDialogVisible(false)}>Cancel</Button>
+            <Button onPress={confirmDelete}>Delete</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
-// Styles for the PostsGrid component
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  listContent: { padding: 8 },
+  container: { width: '100%' },
+  listContent: { paddingBottom: 32, paddingHorizontal: 4 },
   row: { justifyContent: 'space-between' },
-  cardContainer: { width: '48%', marginBottom: 16 },
-  card: { minHeight: 280, backgroundColor: '#ffffff' },
-  cardContent: { flex: 1, padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  title: { fontSize: 18, fontWeight: 'bold', flex: 1, marginRight: 8 },
-  actions: { flexDirection: 'row', marginTop: -8, marginRight: -8 },
-  date: { fontSize: 12, color: '#666', marginBottom: 12 },
-  content: { fontSize: 14, lineHeight: 20, color: '#333' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyBox: { borderWidth: 2, borderStyle: 'dashed', borderColor: '#ddd', borderRadius: 8, padding: 48, width: '100%' },
-  emptyText: { textAlign: 'center', fontSize: 16, color: '#666' },
-  modalOverlay: { 
-    position: 'absolute', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    bottom: 0, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  cardContainer: { flex: 1, marginBottom: 14, paddingHorizontal: 6 },
+  card: { borderRadius: 14, overflow: 'hidden', backgroundColor: '#fff' },
+  cardContent: { paddingBottom: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  actions: { flexDirection: 'row' },
+  title: { flex: 1, fontSize: 14, fontWeight: '600', marginRight: 4 },
+  date: { fontSize: 11, color: '#666', marginBottom: 8 },
+  thumbnailImage: { width: '100%', height: 130, borderRadius: 8, marginBottom: 10, backgroundColor: '#f3f4f6' },
+  content: { fontSize: 12, lineHeight: 16, color: '#333', marginBottom: 6 },
+  meta: { fontSize: 11, color: '#555', marginBottom: 2 },
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#666' },
+
+  // Details modal anchoring
+  anchorOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     zIndex: 1000,
   },
-  modalContent: { backgroundColor: '#ffffff', borderRadius: 12, padding: 24, width: '90%', maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  modalDescription: { fontSize: 14, color: '#666', marginBottom: 24 },
-  inputContainer: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16 },
-  textArea: { height: 120, textAlignVertical: 'top' },
-  dropdownContainer: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, overflow: 'hidden' },
-  dropdown: { width: '100%', height: 44 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24 },
-  button: { minWidth: 100, marginLeft: 12 },
-  meta: {
-    fontSize: 13,
-    color: '#555',
-    marginTop: 6,
-    fontStyle: 'italic',
+  anchorDetailModal: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    maxHeight: '72%',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  locationContainer: {
-    flexDirection: 'row',
+  imageWrapper: {
+    width: '100%',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 6,
-    backgroundColor: '#f0f9ff',
-    padding: 6,
-    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 18,
+  },
+  detailImage: { width: '100%', maxHeight: 420 },
+  detailTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+  detailDate: { fontSize: 12, color: '#666', marginBottom: 16 },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 12,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailValue: { fontSize: 15, color: '#111827' },
+  detailBody: { fontSize: 15, lineHeight: 22, color: '#333', marginTop: 2 },
+
+  mapBlock: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 18,
+    backgroundColor: '#eef2ff',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#c7d2fe',
   },
-  locationIcon: {
+  mapCaption: {
+    position: 'absolute',
+    bottom: 6,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     fontSize: 12,
-    marginRight: 4,
   },
-  locationText: {
-    fontSize: 11,
-    color: '#1e40af',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
+  mapMissing: { marginTop: 18, fontSize: 14, fontStyle: 'italic', color: '#666' },
+
+  detailActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 28 },
 });
