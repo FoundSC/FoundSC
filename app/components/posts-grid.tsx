@@ -15,7 +15,7 @@ import { Card, Button, IconButton, Dialog, Portal, Paragraph } from 'react-nativ
 import { useAuth } from '../contexts/AuthContext';
 import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 
 // Extend Post interface to include poster email
@@ -42,9 +42,18 @@ interface PostsGridProps {
   onRefresh?: () => void;
 }
 
+// Navigation type for routes used here
+type RootStackParamList = {
+  Chat: {
+    conversationId: string | number;
+    otherUserId: string;
+    otherUserEmail: string | null;
+  };
+};
+
 export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsGridProps) {
   const { user } = useAuth();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -189,6 +198,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
         }}
       >
         <Card style={styles.card}>
+          <View style={styles.cardInner}>
           <Card.Content style={styles.cardContent}>
             <View style={styles.cardHeader}>
               <Text style={styles.title} numberOfLines={2}>
@@ -259,6 +269,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
               <Text style={styles.meta}>Location: Not set</Text>
             )}
           </Card.Content>
+          </View>
         </Card>
       </TouchableOpacity>
     </View>
@@ -463,18 +474,29 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
               <Button
                 mode="contained"
                 onPress={async () => {
-                  const { data } = await supabase.rpc('get_or_create_conversation', {
-                    user1_id: user?.id,
-                    user2_id: viewPost.user_id,
-                  });
-                  
-                  if (data) {
-                    navigation.navigate('Chat', {
-                      conversationId: data.conversation_id,
-                      otherUserId: viewPost.user_id,
-                      otherUserEmail: viewPost.user_email,
-                    });
-                  }
+  if (!viewPost?.user_id) {
+    Alert.alert('Unavailable', 'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.');
+    return;
+  }
+  const { data, error } = await supabase.rpc('get_or_create_conversation', {
+    user1_id: user?.id,
+    user2_id: viewPost.user_id,
+  });
+  if (error) {
+    console.error('get_or_create_conversation failed:', error);
+    Alert.alert('Error', error.message);
+    return;
+  }
+  const cid = Array.isArray(data) ? data[0]?.conversation_id : (data as any)?.conversation_id;
+  if (!cid) {
+    Alert.alert('Error', 'Could not create or load the conversation.');
+    return;
+  }
+  navigation.navigate('Chat', {
+    conversationId: cid,
+    otherUserId: viewPost.user_id,
+    otherUserEmail: viewPost.user_email,
+  });
                 }}
               >
                 Contact
@@ -608,7 +630,8 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 32, paddingHorizontal: 4 },
   row: { justifyContent: 'space-between' },
   cardContainer: { flex: 1, marginBottom: 14, paddingHorizontal: 6 },
-  card: { borderRadius: 14, overflow: 'hidden', backgroundColor: '#fff' },
+  card: { borderRadius: 14, overflow: 'visible', backgroundColor: '#fff' },
+  cardInner: { borderRadius: 14, overflow: 'hidden', backgroundColor: '#fff' },
   cardContent: { paddingBottom: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   actions: { flexDirection: 'row' },
