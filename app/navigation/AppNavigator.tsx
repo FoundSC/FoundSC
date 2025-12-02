@@ -10,25 +10,14 @@ import AllPostsScreen from '../screens/AllPostsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import RatingScreen from '../screens/RatingScreen';
-import MainApp from '../App';
+import MessagesScreen from '../screens/MessagesScreen';
 import { View, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import ChatScreen from '../screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/**
- * Main tabs for all users (authenticated and guest)
- *
- * Bottom tab navigation with 3 tabs:
- * 1. Home - Intro content + map (MainApp component)
- * 2. All Posts - Grid view with search/filters (AllPostsScreen)
- * 3. Profile - User profile (ProfileScreen)
- *
- * Tab colors:
- * - Active: #0ea5a4 (teal) for consistency with existing design
- * - Inactive: #666 (gray)
- */
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -39,22 +28,22 @@ function MainTabs() {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={MainApp}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="home" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="AllPosts"
         component={AllPostsScreen}
         options={{
           tabBarLabel: 'All Posts',
           tabBarIcon: ({ color, size }) => (
             <Icon name="view-grid" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesScreen}
+        options={{
+          tabBarLabel: 'Messages',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="message-text" color={color} size={size} />
           ),
         }}
       />
@@ -95,11 +84,17 @@ export default function AppNavigator() {
           </>
         )}
 
-        {/*
-          Main app screens - available to both authenticated AND guest users
-          Bottom tabs are always visible for better UX
-        */}
-        <Stack.Screen name="Main" component={MainTabs} />
+        {/* Main app + Chat - only when authenticated */}
+        {user && (
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
+              options={{ headerShown: true, title: 'Chat' }}
+            />
+          </>
+        )}
 
         {/*
           Additional screens with headers (EditProfile, Rating)

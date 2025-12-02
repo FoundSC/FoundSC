@@ -255,7 +255,6 @@ export default function App() {
     }
   };
 
-
   useEffect(() => {
     fetchPosts();
   }, []);
