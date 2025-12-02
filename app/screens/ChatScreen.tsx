@@ -24,6 +24,7 @@ export default function ChatScreen({ route }: any) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -61,6 +62,12 @@ export default function ChatScreen({ route }: any) {
     }
 
     setMessages(data || []);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchMessages();
+    setRefreshing(false);
   };
 
   const sendMessage = async () => {
@@ -116,6 +123,8 @@ export default function ChatScreen({ route }: any) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messagesList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       <View style={styles.inputContainer}>
         <TextInput

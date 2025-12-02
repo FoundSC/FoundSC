@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { Button, Menu } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
@@ -55,6 +56,8 @@ export default function AllPostsScreen() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+  const [modalCategoryMenuVisible, setModalCategoryMenuVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // New-post form state (mirrors previous Home screen behavior)
   const [newTitle, setNewTitle] = useState('');
@@ -67,10 +70,14 @@ export default function AllPostsScreen() {
 
   const CATEGORIES = [
     'Electronics',
+    'Wallet/ID',
+    'Clothes/Accessories',
     'Pets',
-    'Accessories',
-    'Clothing',
-    'Other',
+    'Keys',
+    'Bags/Backpacks',
+    'Bottles',
+    'Persons',
+    'Miscellaneous',
   ];
 
   /**
@@ -358,6 +365,21 @@ export default function AllPostsScreen() {
   };
 
   /**
+   * Pull-to-refresh handler for the All Posts feed
+   */
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts({
+      search: searchText,
+      category: filterCategory,
+      type: filterType,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    });
+    setRefreshing(false);
+  };
+
+  /**
    * Clear date range filter
    */
   const onClearDateRange = () => {
@@ -368,7 +390,12 @@ export default function AllPostsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         <Header />
         <Hero />
 
@@ -617,13 +644,31 @@ export default function AllPostsScreen() {
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Category</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. electronics, books, personal"
-                  value={newCategory}
-                  onChangeText={setNewCategory}
-                  autoCapitalize="none"
-                />
+                <Button
+                  mode="outlined"
+                  onPress={() => setModalCategoryMenuVisible((v) => !v)}
+                  icon="chevron-down"
+                >
+                  {newCategory ? `Category: ${newCategory}` : 'Select category'}
+                </Button>
+                {modalCategoryMenuVisible && (
+                  <View style={{ marginTop: 8 }}>
+                    {CATEGORIES.map((cat) => (
+                      <Button
+                        key={cat}
+                        mode={newCategory === cat ? 'contained' : 'text'}
+                        onPress={() => {
+                          setNewCategory(cat);
+                          setModalCategoryMenuVisible(false);
+                        }}
+                        style={{ justifyContent: 'flex-start' }}
+                        contentStyle={{ justifyContent: 'flex-start' }}
+                      >
+                        {cat}
+                      </Button>
+                    ))}
+                  </View>
+                )}
               </View>
 
               {newImageUri ? (

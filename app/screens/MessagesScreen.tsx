@@ -18,6 +18,7 @@ interface Conversation {
 export default function MessagesScreen({ navigation }: any) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +54,13 @@ export default function MessagesScreen({ navigation }: any) {
     }
 
     setConversations(data || []);
+  };
+
+  const handleRefresh = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    await fetchConversations();
+    setRefreshing(false);
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => (
@@ -96,6 +104,8 @@ export default function MessagesScreen({ navigation }: any) {
         renderItem={renderConversation}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={() => <Divider />}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No messages yet</Text>
