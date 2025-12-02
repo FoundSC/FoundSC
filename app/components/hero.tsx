@@ -1,129 +1,87 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Button } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons'; 
+import FeaturesModal from './features-modal';
 
-// Hero component for the main landing section
+/**
+ * Hero Component
+ *
+ * Main landing section displaying:
+ * - FoundSC branding heading
+ * - Intro text explaining the app's purpose
+ * - "Learn More" button that opens features modal
+ *
+ * Removed elements (as per user request):
+ * - "Now Available" badge with pinging animation
+ * - "Start Searching" button
+ * - "Report Found Item" button
+ */
 export function Hero() {
+  // State to control features modal visibility
+  const [modalVisible, setModalVisible] = useState(false);
+
   return (
     <View style={styles.container}>
-      {/* Badge */}
-      <View style={styles.badge}>
-        <View style={styles.pingContainer}>
-          <View style={styles.pingOuter} />
-          <View style={styles.pingInner} />
-        </View>
-        <Text style={styles.badgeText}>Now Available</Text>
-      </View>
-
-      {/* Heading */}
+      {/* Heading - "Discover What's Been Found" */}
       <Text style={styles.heading}>
         Discover What's Been <Text style={styles.accent}>Found</Text>
       </Text>
 
-      {/* Subheading */}
+      {/* Intro text explaining the app's purpose */}
       <Text style={styles.subheading}>
         Connect lost items with their owners. A modern platform designed to reunite people with their belongings through community-driven discovery.
       </Text>
 
-      {/* Buttons */}
-      <View style={styles.buttonRow}>
-        <Button
-          mode="contained"
-          style={styles.button}
-          onPress={() => console.log('Start Searching')}
-          icon={() => <Ionicons name="arrow-forward" size={16} color="white" />}
-        >
-          Start Searching
-        </Button>
+      {/* "Learn More" button - Opens modal with 4 feature cards */}
+      <Button
+        mode="outlined"
+        style={styles.learnMoreButton}
+        onPress={() => setModalVisible(true)}
+        textColor="#0ea5a4"
+      >
+        Learn More
+      </Button>
 
-        <Button
-          mode="outlined"
-          style={styles.button}
-          onPress={() => console.log('Report Found Item')}
-        >
-          Report Found Item
-        </Button>
-      </View>
-
+      {/* Features Modal - Shows when Learn More is clicked */}
+      <FeaturesModal
+        visible={modalVisible}
+        onDismiss={() => setModalVisible(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Container with reduced padding for compact layout, content appears right under header
   container: {
-    paddingVertical: 40,
+    paddingVertical: 16,     // Reduced from 40px to 16px to move content up
     paddingHorizontal: 20,
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  pingContainer: {
-    width: 8,
-    height: 8,
-    marginRight: 6,
-  },
-  pingOuter: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0ea5a4',
-    borderRadius: 4,
-    opacity: 0.3,
-  },
-  pingInner: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#0ea5a4',
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#555',
-  },
+  // Main heading - 32px for prominence
   heading: {
     fontSize: 32,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
   },
+  // Accent color for "Found" text - teal (#0ea5a4)
   accent: {
     color: '#0ea5a4',
   },
+  // Intro text with 16px font size, centered
   subheading: {
     fontSize: 16,
     textAlign: 'center',
     color: '#555',
     marginBottom: 20,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 16,
-  },
-  button: {
-    marginHorizontal: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  footerDivider: {
-    width: 32,
-    height: 1,
-    backgroundColor: '#ccc',
-    marginRight: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#555',
+  // "Learn More" button - outlined style with teal color
+  // marginTop: 8px provides spacing from intro text
+  learnMoreButton: {
+    marginTop: 8,
+    borderRadius: 8,
+    borderColor: '#0ea5a4',
   },
 });

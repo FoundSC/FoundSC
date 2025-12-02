@@ -1,34 +1,40 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-// Header component displaying app name and tagline
+/**
+ * Header Component
+ *
+ * Displays the app branding at the top of the Home screen:
+ * - "FoundSC" title - left-aligned, compact app name
+ * - Removed subtitle for cleaner, more compact design
+ *
+ * Background color: teal (#0ea5a4) for brand consistency
+ */
 export default function Header() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FoundSC</Text>
-      <Text style={styles.subtitle}>Reunite with your lost items</Text>
     </View>
   );
 }
 
 // Styles for the Header component
 const styles = StyleSheet.create({
+  // Container with teal background, left-aligned for compact header
   container: {
     width: '100%',
-    paddingTop: 18,
-    paddingBottom: 12,
+    paddingTop: 16,      // 16px top padding for compact design
+    paddingBottom: 16,   // 16px bottom padding for balance
     paddingHorizontal: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start', // Left-align instead of center
+    backgroundColor: '#0ea5a4', // Teal brand color
   },
+  // App title - 20px (30% smaller than 28px) for compact header
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
+    letterSpacing: 0.5, // Slight letter spacing for modern look
   },
 });
 

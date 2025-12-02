@@ -16,6 +16,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { StarRatingDisplay } from '../components/star-rating';
 import { getUserProfile, getUserRatingsReceived } from '../lib/ratings';
 import { supabase } from '../lib/supabase';
+import AlertsModal from '../components/alerts';
+import FloatingActionButton from '../components/floating-action-button';
+import { useAddPost } from '../contexts/AddPostContext';
 
 /**
  * ProfileScreen Component
@@ -38,6 +41,7 @@ import { supabase } from '../lib/supabase';
  */
 export default function ProfileScreen({ route, navigation }: any) {
   const { user } = useAuth();
+  const { openModal } = useAddPost();
   // Get userId from route params, or default to current user's ID
   const profileUserId = route?.params?.userId || user?.id;
   const isOwnProfile = profileUserId === user?.id;
@@ -51,6 +55,7 @@ export default function ProfileScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'ratings'>('posts');
+  const [alertsVisible, setAlertsVisible] = useState(false);
 
   useEffect(() => {
     if (profileUserId) {
@@ -291,12 +296,13 @@ export default function ProfileScreen({ route, navigation }: any) {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-    >
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
       {/* Profile Header Section */}
       <View style={styles.header}>
         {/* Profile Picture - 120x120 for clear visibility while not dominating screen */}
@@ -331,14 +337,26 @@ export default function ProfileScreen({ route, navigation }: any) {
 
         {/* Edit Profile Button - Only shown on own profile */}
         {isOwnProfile && (
-          <Button
-            mode="outlined"
-            onPress={handleEditProfile}
-            style={styles.editButton}
-            icon="pencil"
-          >
-            Edit Profile
-          </Button>
+          <>
+            <Button
+              mode="outlined"
+              onPress={handleEditProfile}
+              style={styles.editButton}
+              icon="pencil"
+            >
+              Edit Profile
+            </Button>
+
+            {/* Notifications Button - Opens alerts/notifications modal */}
+            <Button
+              mode="outlined"
+              onPress={() => setAlertsVisible(true)}
+              style={styles.notificationsButton}
+              icon="bell"
+            >
+              Notifications
+            </Button>
+          </>
         )}
       </View>
 
@@ -421,7 +439,17 @@ export default function ProfileScreen({ route, navigation }: any) {
           )
         )}
       </View>
-    </ScrollView>
+
+      {/* Alerts Modal - Shows notifications for matching posts */}
+      <AlertsModal
+        visible={alertsVisible}
+        onDismiss={() => setAlertsVisible(false)}
+      />
+      </ScrollView>
+
+      {/* Floating Action Button - Fixed position, bottom-right corner */}
+      <FloatingActionButton onPress={openModal} />
+    </View>
   );
 }
 
@@ -505,6 +533,11 @@ const styles = StyleSheet.create({
   },
   editButton: {
     marginTop: 8,
+    borderRadius: 8,
+  },
+  // Notifications button - matches Edit Profile style, positioned below it
+  notificationsButton: {
+    marginTop: 8,        // 8px spacing from Edit Profile button above
     borderRadius: 8,
   },
 

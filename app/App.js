@@ -11,6 +11,7 @@ import {
   TextInput,
   Platform,
   Alert,
+  StatusBar,
 } from 'react-native';
 
 import { Provider as PaperProvider, Button } from 'react-native-paper';
@@ -19,11 +20,9 @@ import { Image } from 'react-native';
 
 import { createClient } from '@supabase/supabase-js';
 import Header from './components/header';
-import CTA from './components/cta';
-import { AddPostButton } from './components/add-post-button';
-import { Features } from './components/features';
 import { Hero } from './components/hero';
 import PostsMapView from './components/map-view';
+import FloatingActionButton from './components/floating-action-button';
 import LocationPicker from './components/location-picker';
 // Notifications: Expo APIs to request permission and get Expo push token
 import * as Notifications from 'expo-notifications';
@@ -41,6 +40,7 @@ registerTranslation('en', en);
 // Supabase client
 import { supabase } from './lib/supabase';
 import { useAuth } from './contexts/AuthContext'; // Add this import at the top
+import { useAddPost } from './contexts/AddPostContext';
 
 // Configure how notifications are displayed while the app is foregrounded
 Notifications.setNotificationHandler({
@@ -53,8 +53,8 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   const { user } = useAuth(); // ✅ Add this at the top of component
+  const { modalVisible, openModal, closeModal } = useAddPost();
   const [posts, setPosts] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
   // Holds the Expo push token for this device/session (set after permission)
   const [pushToken, setPushToken] = useState(null);
   const [alertsVisible, setAlertsVisible] = useState(false);
@@ -289,21 +289,11 @@ export default function App() {
 
   return (
     <PaperProvider>
+      <StatusBar barStyle="light-content" backgroundColor="#0ea5a4" />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
           <Header />
-          <CTA />
           <Hero />
-          <Features />
-
-          {/* Alerts and Add Post Button */}
-          <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
-            <Button mode="outlined" onPress={() => setAlertsVisible(true)}>Alerts</Button>
-          </View>
-
-          <View style={styles.section}>
-            <AddPostButton onAddPost={() => setModalVisible(true)} />
-          </View>
 
           {/* Map View - Always Visible */}
           <View style={styles.postsSection}>
@@ -312,13 +302,17 @@ export default function App() {
               onRefresh={() => fetchPosts()}
             />
           </View>
+        </ScrollView>
 
-          {/* Add Post Modal */}
-          <Modal
+        {/* Floating Action Button - Fixed position, bottom-right corner */}
+        <FloatingActionButton onPress={openModal} />
+
+        {/* Add Post Modal */}
+        <Modal
             visible={modalVisible}
             animationType="slide"
             transparent={true}
-            onRequestClose={() => setModalVisible(false)}
+            onRequestClose={closeModal}
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -408,7 +402,7 @@ export default function App() {
                     <Button
                       mode="outlined"
                       onPress={() => {
-                        setModalVisible(false);
+                        closeModal();
                         setNewTitle('');
                         setNewContent('');
                         setNewType('');
@@ -427,7 +421,7 @@ export default function App() {
                       onPress={async () => {
                         console.log('[submit] adding post');
                         await handleAddPost(newTitle, newContent, newType, newCategory, undefined);
-                        setModalVisible(false);
+                        closeModal();
                         setNewTitle('');
                         setNewContent('');
                         setNewType('');
@@ -452,7 +446,6 @@ export default function App() {
             </View>
           </Modal>
           <AlertsModal visible={alertsVisible} onDismiss={() => setAlertsVisible(false)} />
-        </ScrollView>
       </SafeAreaView>
     </PaperProvider>
   );

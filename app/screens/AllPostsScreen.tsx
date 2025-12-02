@@ -14,6 +14,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import PostsGrid from '../components/posts-grid';
 import PostsMapView from '../components/map-view';
+import FloatingActionButton from '../components/floating-action-button';
+import { useAddPost } from '../contexts/AddPostContext';
 
 /**
  * AllPostsScreen Component
@@ -30,6 +32,7 @@ import PostsMapView from '../components/map-view';
  */
 export default function AllPostsScreen() {
   const { user } = useAuth();
+  const { openModal } = useAddPost();
 
   // Posts data
   const [posts, setPosts] = useState<any[]>([]);
@@ -423,6 +426,9 @@ export default function AllPostsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Floating Action Button - Fixed position, bottom-right corner */}
+      <FloatingActionButton onPress={openModal} />
     </SafeAreaView>
   );
 }
