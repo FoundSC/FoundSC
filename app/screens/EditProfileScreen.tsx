@@ -16,10 +16,19 @@ import { Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile, updateUserProfile } from '../lib/ratings';
 import { supabase } from '../lib/supabase';
+
+function base64ToArrayBuffer(base64: string): Uint8Array {
+  const binaryString = globalThis.atob ? globalThis.atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
 /**
  * EditProfileScreen Component
@@ -144,9 +153,10 @@ export default function EditProfileScreen({ navigation }: any) {
       const filePath = `${fileName}`;
 
       // Upload to Supabase Storage 'avatars' bucket
+      const fileBytes = base64ToArrayBuffer(base64);
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(base64), {
+        .upload(filePath, fileBytes, {
           contentType: 'image/jpeg',
           upsert: false,
         });
