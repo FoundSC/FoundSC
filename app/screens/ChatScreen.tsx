@@ -89,7 +89,7 @@ export default function ChatScreen({ route }: any) {
           isOwn ? styles.ownMessage : styles.otherMessage,
         ]}
       >
-        <Text style={styles.messageText}>{item.content}</Text>
+        <Text style={[styles.messageText, isOwn && styles.ownMessageText]}>{item.content}</Text>
         <Text style={styles.messageTime}>
           {new Date(item.created_at).toLocaleTimeString([], {
             hour: '2-digit',
@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   messageText: { fontSize: 15, color: '#111' },
+  ownMessageText: { color: '#fff' },
   messageTime: { fontSize: 11, color: '#666', marginTop: 4 },
   inputContainer: {
     flexDirection: 'row',
