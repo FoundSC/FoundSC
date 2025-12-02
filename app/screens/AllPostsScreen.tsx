@@ -7,6 +7,8 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Modal,
+  Image,
 } from 'react-native';
 import { Button, Menu } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
@@ -16,6 +18,10 @@ import PostsGrid from '../components/posts-grid';
 import PostsMapView from '../components/map-view';
 import FloatingActionButton from '../components/floating-action-button';
 import { useAddPost } from '../contexts/AddPostContext';
+import Header from '../components/header';
+import { Hero } from '../components/hero';
+import LocationPicker from '../components/location-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 /**
  * AllPostsScreen Component
@@ -32,7 +38,7 @@ import { useAddPost } from '../contexts/AddPostContext';
  */
 export default function AllPostsScreen() {
   const { user } = useAuth();
-  const { openModal } = useAddPost();
+  const { modalVisible, openModal, closeModal } = useAddPost();
 
   // Posts data
   const [posts, setPosts] = useState<any[]>([]);
@@ -49,6 +55,15 @@ export default function AllPostsScreen() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+
+  // New-post form state (mirrors previous Home screen behavior)
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [newType, setNewType] = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [newImageUri, setNewImageUri] = useState<string | null>(null);
+  const [newLatitude, setNewLatitude] = useState<number | null>(null);
+  const [newLongitude, setNewLongitude] = useState<number | null>(null);
 
   const CATEGORIES = [
     'Electronics',
@@ -124,44 +139,155 @@ export default function AllPostsScreen() {
     }
   };
 
+  // Image picker for new posts (same pattern as other screens)
+  const handlePickImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert('Permission required', 'We need photo access to attach an image.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets?.length) {
+        setNewImageUri(result.assets[0].uri);
+      }
+    } catch (e: any) {
+      console.error('Error picking image:', e?.message || e);
+    }
+  };
+
+  const guessMimeFromUri = (uri: string | null) => {
+    const lower = (uri || '').toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.heic') || lower.endsWith('.heif')) return 'image/heic';
+    return 'image/jpeg';
+  };
+
+  const uploadImageIfNeeded = async (uri: string | null): Promise<string | null> => {
+    if (!uri) return null;
+    try {
+      const fileName = `uploads/${Date.now()}_${uri.split('/').pop() || 'image.jpg'}`;
+      const res = await fetch(uri);
+      if (!res.ok) return null;
+      const ab = await res.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      const contentType = guessMimeFromUri(uri);
+      const { error } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, bytes, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType,
+        });
+      if (error) {
+        console.error('Upload error:', error);
+        return null;
+      }
+      const { data } = supabase.storage.from('post-images').getPublicUrl(fileName);
+      return data?.publicUrl || null;
+    } catch (e) {
+      console.error('Upload exception:', e);
+      return null;
+    }
+  };
+
+  const handleAddPost = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create a post');
+      return;
+    }
+
+    const safeTitle = newTitle.trim();
+    const safeDescription = newContent.trim();
+    const safeType = newType.toLowerCase().trim();
+    const safeCategory = newCategory.trim();
+
+    if (!safeTitle || !safeCategory || !['lost', 'found'].includes(safeType)) {
+      Alert.alert('Error', 'Title, category, and type are required');
+      return;
+    }
+
+    const uploadedUrl = await uploadImageIfNeeded(newImageUri);
+
+    const payload: any = {
+      title: safeTitle,
+      description: safeDescription || null,
+      type: safeType,
+      category: safeCategory,
+      image_url: uploadedUrl || null,
+      latitude: newLatitude,
+      longitude: newLongitude,
+      user_id: user.id,
+    };
+
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding post:', error);
+      Alert.alert('Error', 'Failed to create post');
+      return;
+    }
+
+    setPosts((prev) => [data, ...prev]);
+    // Reset form and close modal
+    setNewTitle('');
+    setNewContent('');
+    setNewType('');
+    setNewCategory('');
+    setNewImageUri(null);
+    setNewLatitude(null);
+    setNewLongitude(null);
+    closeModal();
+  };
+
   /**
    * Edit a post (title, description, type, category, image)
-   * Only the post owner can edit their posts
+   * Called with full post object from PostsGrid
    */
-  const handleEditPost = async (
-    id: string | number,
-    title: string,
-    description: string,
-    type?: string,
-    category?: string,
-    imageCandidate?: string
-  ) => {
-    if (!title || !description) {
+  const handleEditPost = async (updatedPost: any) => {
+    if (!updatedPost.title || !updatedPost.description) {
       Alert.alert('Error', 'Title and description are required');
       return;
     }
 
-    const updatePayload: any = { title, description };
-    if (type && typeof type === 'string') {
-      updatePayload.type = type.toLowerCase().trim();
+    const updatePayload: any = {
+      title: updatedPost.title,
+      description: updatedPost.description,
+    };
+    if (updatedPost.type && typeof updatedPost.type === 'string') {
+      updatePayload.type = updatedPost.type.toLowerCase().trim();
     }
-    if (category && typeof category === 'string') {
-      updatePayload.category = category.trim();
+    if (updatedPost.category && typeof updatedPost.category === 'string') {
+      updatePayload.category = updatedPost.category.trim();
+    }
+    if (updatedPost.contact_info) {
+      updatePayload.contact_info = updatedPost.contact_info;
+    }
+    if (typeof updatedPost.image_url !== 'undefined') {
+      updatePayload.image_url = updatedPost.image_url;
     }
 
     const { error } = await supabase
       .from('posts')
       .update(updatePayload)
-      .eq('id', id);
+      .eq('id', updatedPost.id);
 
     if (error) {
       console.error('Error editing post:', error);
       Alert.alert('Error', 'Failed to update post');
     } else {
-      // Update local state
       setPosts((prev) =>
         prev.map((post) =>
-          post.id === id ? { ...post, ...updatePayload } : post
+          post.id === updatedPost.id ? { ...post, ...updatePayload } : post
         )
       );
     }
@@ -243,6 +369,9 @@ export default function AllPostsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
+        <Header />
+        <Hero />
+
         {/* Page Title */}
         <Text style={styles.pageTitle}>All Posts</Text>
 
@@ -429,6 +558,131 @@ export default function AllPostsScreen() {
 
       {/* Floating Action Button - Fixed position, bottom-right corner */}
       <FloatingActionButton onPress={openModal} />
+
+      {/* Add Post Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView>
+              <Text style={styles.modalTitle}>Create New Post</Text>
+              <Text style={styles.modalDescription}>
+                Add a new post to your feed.
+              </Text>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Title</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter post title"
+                  value={newTitle}
+                  onChangeText={setNewTitle}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Write your post description..."
+                  value={newContent}
+                  onChangeText={setNewContent}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Type</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Button
+                    mode={newType === 'lost' ? 'contained' : 'outlined'}
+                    onPress={() => setNewType('lost')}
+                    style={{ borderRadius: 20 }}
+                  >
+                    Lost
+                  </Button>
+                  <Button
+                    mode={newType === 'found' ? 'contained' : 'outlined'}
+                    onPress={() => setNewType('found')}
+                    style={{ borderRadius: 20 }}
+                  >
+                    Found
+                  </Button>
+                </View>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Category</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. electronics, books, personal"
+                  value={newCategory}
+                  onChangeText={setNewCategory}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {newImageUri ? (
+                <Image
+                  source={{ uri: newImageUri }}
+                  style={{ width: '100%', height: 160, borderRadius: 8, marginBottom: 12 }}
+                  resizeMode="cover"
+                />
+              ) : null}
+
+              <View style={styles.imageRow}>
+                <Button mode="outlined" onPress={handlePickImage} style={styles.addImageBtn}>
+                  + Add Image
+                </Button>
+              </View>
+
+              <LocationPicker
+                onLocationSelect={(lat, lng) => {
+                  setNewLatitude(lat);
+                  setNewLongitude(lng);
+                }}
+                initialLatitude={newLatitude}
+                initialLongitude={newLongitude}
+              />
+
+              <View style={styles.modalActions}>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    closeModal();
+                    setNewTitle('');
+                    setNewContent('');
+                    setNewType('');
+                    setNewCategory('');
+                    setNewImageUri(null);
+                    setNewLatitude(null);
+                    setNewLongitude(null);
+                  }}
+                  style={styles.cancelBtn}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleAddPost}
+                  style={styles.submitBtn}
+                  disabled={
+                    !newTitle.trim() ||
+                    !newCategory.trim() ||
+                    !['lost', 'found'].includes(newType.toLowerCase().trim())
+                  }
+                >
+                  Add Post
+                </Button>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -485,5 +739,70 @@ const styles = StyleSheet.create({
   postsSection: {
     marginTop: 10,
     minHeight: 500, // Prevents layout shift when switching views
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 24,
+  },
+  imageRow: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addImageBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+  },
+  cancelBtn: {
+    minWidth: 100,
+    marginRight: 12,
+    borderRadius: 20,
+  },
+  submitBtn: {
+    flexGrow: 1,
+    borderRadius: 24,
   },
 });
