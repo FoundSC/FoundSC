@@ -47,7 +47,7 @@ BEGIN
 END $$;
 
 -- Allow anyone to delete their own comments, or anyone if author_id is null (MVP)
--- Later you can tighten this to auth.uid() checks once auth is enforced.
+-- Later we can tighten this to auth.uid()
 DO $$
 BEGIN
   IF NOT EXISTS (
