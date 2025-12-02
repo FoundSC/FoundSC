@@ -158,6 +158,10 @@ export async function getUserProfile(userId: string) {
       .select('*')
       .eq('id', userId)
       .single();
+    // If there is simply no profile row yet, treat that as "no profile" rather than a hard error.
+    if (error && (error as any).code === 'PGRST116') {
+      return { data: null, error: null };
+    }
 
     return { data, error };
   } catch (err) {
@@ -177,10 +181,11 @@ export async function updateUserProfile(
   }
 ) {
   try {
+    // Use upsert so that a profile row is created if it does not exist yet.
+    const payload = { id: userId, ...updates } as any;
     const { data, error } = await supabase
       .from('user_profiles')
-      .update(updates)
-      .eq('id', userId)
+      .upsert(payload, { onConflict: 'id' })
       .select()
       .single();
 

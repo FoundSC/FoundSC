@@ -40,7 +40,7 @@ import { useAddPost } from '../contexts/AddPostContext';
  * @param navigation - React Navigation object for screen transitions
  */
 export default function ProfileScreen({ route, navigation }: any) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { openModal } = useAddPost();
   // Get userId from route params, or default to current user's ID
   const profileUserId = route?.params?.userId || user?.id;
@@ -135,6 +135,11 @@ export default function ProfileScreen({ route, navigation }: any) {
     setRefreshing(true);
     await loadProfileData();
     setRefreshing(false);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigation.navigate('Login');
   };
 
   /**
@@ -284,6 +289,18 @@ export default function ProfileScreen({ route, navigation }: any) {
   }
 
   if (!profile) {
+    if (isOwnProfile) {
+      return (
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="account-plus" size={64} color="#ccc" />
+          <Text style={styles.errorText}>You don't have a profile yet</Text>
+          <Button mode="contained" onPress={() => navigation.navigate('EditProfile')}>
+            Set Up Profile
+          </Button>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.errorContainer}>
         <MaterialCommunityIcons name="account-alert" size={64} color="#ccc" />
@@ -335,7 +352,7 @@ export default function ProfileScreen({ route, navigation }: any) {
           <MaterialCommunityIcons name="content-copy" size={16} color="#666" />
         </TouchableOpacity>
 
-        {/* Edit Profile Button - Only shown on own profile */}
+        {/* Edit / Notifications / Logout - Only on own profile */}
         {isOwnProfile && (
           <>
             <Button
@@ -347,7 +364,6 @@ export default function ProfileScreen({ route, navigation }: any) {
               Edit Profile
             </Button>
 
-            {/* Notifications Button - Opens alerts/notifications modal */}
             <Button
               mode="outlined"
               onPress={() => setAlertsVisible(true)}
@@ -355,6 +371,16 @@ export default function ProfileScreen({ route, navigation }: any) {
               icon="bell"
             >
               Notifications
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={handleLogout}
+              textColor="#ef4444"
+              style={{ marginTop: 8 }}
+              icon="logout"
+            >
+              Log Out
             </Button>
           </>
         )}
