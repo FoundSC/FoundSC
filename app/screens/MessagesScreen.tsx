@@ -11,6 +11,8 @@ interface Conversation {
   last_message: string;
   last_message_time: string;
   unread_count: number;
+  post_id: number;
+  post_title: string | null;
 }
 
 export default function MessagesScreen({ navigation }: any) {
@@ -42,7 +44,7 @@ export default function MessagesScreen({ navigation }: any) {
     if (!user) return;
 
     const { data, error } = await supabase.rpc('get_user_conversations', {
-      user_id: user.id,
+      in_user_id: user.id,
     });
 
     if (error) {
@@ -68,6 +70,9 @@ export default function MessagesScreen({ navigation }: any) {
       />
       <View style={styles.conversationContent}>
         <Text style={styles.conversationEmail}>{item.other_user_email}</Text>
+        {item.post_title ? (
+          <Text style={styles.postTitle} numberOfLines={1}>{item.post_title}</Text>
+        ) : null}
         <Text style={styles.lastMessage} numberOfLines={1}>
           {item.last_message}
         </Text>
@@ -111,6 +116,7 @@ const styles = StyleSheet.create({
   },
   conversationContent: { flex: 1, marginLeft: 12 },
   conversationEmail: { fontSize: 16, fontWeight: '600' },
+  postTitle: { fontSize: 13, color: '#444', marginTop: 2 },
   lastMessage: { fontSize: 14, color: '#666', marginTop: 4 },
   timestamp: { fontSize: 12, color: '#999', marginTop: 2 },
   unreadBadge: {

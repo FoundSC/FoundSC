@@ -481,6 +481,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const { data, error } = await supabase.rpc('get_or_create_conversation', {
     user1_id: user?.id,
     user2_id: viewPost.user_id,
+    in_post_id: viewPost.id,
   });
   if (error) {
     console.error('get_or_create_conversation failed:', error);
