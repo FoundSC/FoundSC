@@ -1,30 +1,36 @@
+// MessagesScreen: shows a list of one-to-one conversations for the current user.
+// Pulls conversation metadata via a Supabase RPC, subscribes to new messages to refresh,
+// and navigates to ChatScreen when a conversation is tapped.
+
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Avatar, Divider } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+// Conversation list item with metadata returned by get_user_conversations
 interface Conversation {
-  id: string;
-  other_user_id: string;
-  other_user_email: string;
-  last_message: string;
-  last_message_time: string;
-  unread_count: number;
-  post_id: number;
-  post_title: string | null;
+  id: string;                      // conversation/thread id
+  other_user_id: string;           // the other participant's user id
+  other_user_email: string;        // the other participant's email (for display)
+  last_message: string;            // most recent message content
+  last_message_time: string;       // timestamp of the most recent message
+  unread_count: number;            // unread messages count for the current user
+  post_id: number;                 // optional: source post id, if conversation was created from a post
+  post_title: string | null;       // optional: source post title
 }
 
 export default function MessagesScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user } = useAuth(); // current authenticated user from context
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // pull-to-refresh state
 
   useEffect(() => {
     if (!user) return;
     fetchConversations();
 
-    // Subscribe to new messages
+    // Realtime subscription: refresh the list when a new message is inserted anywhere.
+    // We keep it simple and refetch; alternatively we could update the specific conversation in place.
     const subscription = supabase
       .channel('messages')
       .on('postgres_changes', {
@@ -41,11 +47,12 @@ export default function MessagesScreen({ navigation }: any) {
     };
   }, [user]);
 
+  // Load conversations for the current user 
   const fetchConversations = async () => {
     if (!user) return;
 
     const { data, error } = await supabase.rpc('get_user_conversations', {
-      in_user_id: user.id,
+      in_user_id: user.id, 
     });
 
     if (error) {
@@ -56,6 +63,7 @@ export default function MessagesScreen({ navigation }: any) {
     setConversations(data || []);
   };
 
+  // Pull-to-refresh handler
   const handleRefresh = async () => {
     if (!user) return;
     setRefreshing(true);
@@ -63,6 +71,7 @@ export default function MessagesScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
+  // Render a single conversation row with avatar, email, optional post title, last message, time, and unread badge
   const renderConversation = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
       style={styles.conversationItem}
@@ -72,22 +81,27 @@ export default function MessagesScreen({ navigation }: any) {
         otherUserEmail: item.other_user_email,
       })}
     >
+      {/* Avatar from first letter of other user's email */}
       <Avatar.Text
         size={50}
         label={item.other_user_email?.charAt(0).toUpperCase() || 'U'}
       />
       <View style={styles.conversationContent}>
         <Text style={styles.conversationEmail}>{item.other_user_email}</Text>
+        {/* Show the source post title if present */}
         {item.post_title ? (
           <Text style={styles.postTitle} numberOfLines={1}>{item.post_title}</Text>
         ) : null}
+        {/* Last message preview */}
         <Text style={styles.lastMessage} numberOfLines={1}>
           {item.last_message}
         </Text>
+        {/* Human-readable date for last message */}
         <Text style={styles.timestamp}>
           {new Date(item.last_message_time).toLocaleDateString()}
         </Text>
       </View>
+      {/* Unread count badge */}
       {item.unread_count > 0 && (
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadText}>{item.unread_count}</Text>
@@ -98,7 +112,10 @@ export default function MessagesScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Screen header */}
       <Text style={styles.header}>Messages</Text>
+
+      {/* Conversations list with separators, empty state, and pull-to-refresh */}
       <FlatList
         data={conversations}
         renderItem={renderConversation}

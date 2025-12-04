@@ -1,3 +1,7 @@
+// SignUpScreen: handles account creation via AuthContext.signUp.
+// Validates inputs (email/password/confirm), provides loading feedback, and
+// navigates to Login on success or allows Guest entry.
+
 import React, { useState } from 'react';
 import {
   View,
@@ -17,24 +21,30 @@ export default function SignUpScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
   const { signUp } = useAuth();
 
+  // Validate fields and attempt sign-up; show alerts for success/failure
   const handleSignUp = async () => {
+    // Basic presence checks
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    // Confirm password must match password
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
+    // Simple strength requirement
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
+    // Call signUp and handle loading state/UI feedback
     setLoading(true);
     const { error } = await signUp(email, password);
     setLoading(false);
@@ -42,6 +52,7 @@ export default function SignUpScreen({ navigation }: any) {
     if (error) {
       Alert.alert('Sign Up Failed', error.message);
     } else {
+      // On success, inform user and navigate to Login to verify/sign in
       Alert.alert(
         'Success',
         'Account created! Please check your email to verify your account.',
@@ -51,17 +62,22 @@ export default function SignUpScreen({ navigation }: any) {
   };
 
   return (
+    // Keep content visible when keyboard opens (padding for iOS, height for Android)
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {/* Scrollable layout so content fits on smaller screens */}
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Header: title and short subtitle */}
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to get started</Text>
         </View>
 
+        {/* Form group: inputs and actions */}
         <View style={styles.form}>
+          {/* Email input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -75,6 +91,7 @@ export default function SignUpScreen({ navigation }: any) {
             />
           </View>
 
+          {/* Password input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <TextInput
@@ -87,6 +104,7 @@ export default function SignUpScreen({ navigation }: any) {
             />
           </View>
 
+          {/* Confirm password input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password</Text>
             <TextInput
@@ -99,6 +117,7 @@ export default function SignUpScreen({ navigation }: any) {
             />
           </View>
 
+          {/* Primary action: create account */}
           <Button
             mode="contained"
             onPress={handleSignUp}
@@ -110,6 +129,7 @@ export default function SignUpScreen({ navigation }: any) {
             Create Account
           </Button>
 
+          {/* Inline navigation to Login */}
           <View style={styles.loginPrompt}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <Button
@@ -121,12 +141,14 @@ export default function SignUpScreen({ navigation }: any) {
             </Button>
           </View>
 
+          {/* Divider for guest option */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Guest mode: navigate into main app without authentication */}
           <Button
             mode="outlined"
             onPress={() => navigation.replace('Main')}

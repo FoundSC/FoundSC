@@ -18,7 +18,6 @@ import { supabase } from '../lib/supabase';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 
-// Extend Post interface to include extra metadata used by messaging and maps
 interface Post {
   id?: string | number;
   title?: string;
@@ -33,7 +32,7 @@ interface Post {
   longitude?: number | null;
   user_email?: string | null;
   contact_info?: string | null;
-  status?: string; // 'active', 'in_exchange', 'found', etc.
+  status?: string; // status of the post (i.e.'active', 'in_exchange', 'found', etc.)
 }
 
 interface PostsGridProps {
@@ -89,6 +88,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     }
   }, [viewPost]);
 
+  // Function to handle marking a post as found
+  // Only for lost posts owned by the current user
   const handleMarkFound = async (post: Post) => {
     if (!user || user.id !== post.user_id) {
       Alert.alert('Not allowed', 'You can only mark your own posts as found.');
@@ -118,22 +119,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setUpdatingId(null);
   };
 
-  const renderStatusBadge = (type?: string) => {
-    if (type === 'lost')
-      return (
-        <View style={{ alignSelf: 'flex-start', backgroundColor: '#dc2626', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 }}>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', letterSpacing: 0.5 }}>LOST</Text>
-        </View>
-      );
-    if (type === 'found')
-      return (
-        <View style={{ alignSelf: 'flex-start', backgroundColor: '#16a34a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 }}>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', letterSpacing: 0.5 }}>FOUND</Text>
-        </View>
-      );
-    return null;
-  };
-
+  // Handle editing a post
   const handleEditClick = (post: Post) => {
     if (!user || user.id !== post.user_id) {
       Alert.alert('Not allowed', 'You can only edit your own posts.');
@@ -145,11 +131,12 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setEditType(post.type || '');
     setEditCategory(post.category || '');
     setEditContactInfo(post.contact_info || '');
-    setEditImageUri(post.image_url || null); // ← ADD THIS
+    setEditImageUri(post.image_url || null); 
     setEditModalVisible(true);
     setViewPost(null);
   };
 
+  // Save edited post
   const handleSaveEdit = () => {
     if (!editingPost) return;
 
@@ -160,7 +147,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       type: editType,
       category: editCategory,
       contact_info: editContactInfo,
-      image_url: editImageUri, // ← ADD THIS
+      image_url: editImageUri, 
     };
 
     onEdit && onEdit(updatedPost);
@@ -171,14 +158,16 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setEditType('');
     setEditCategory('');
     setEditContactInfo('');
-    setEditImageUri(null); // ← ADD THIS
+    setEditImageUri(null); 
   };
 
+  // Handle deleting a post
   const handleDeleteClick = (id: string | number) => {
     setDeleteTargetId(id);
     setDeleteDialogVisible(true);
   };
 
+  // Confirm deletion
   const confirmDelete = () => {
     if (deleteTargetId != null) {
       onDelete && onDelete(deleteTargetId);
@@ -187,6 +176,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     setDeleteTargetId(null);
   };
 
+  // Render each post card
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.cardContainer}>
       <TouchableOpacity
@@ -275,6 +265,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     </View>
   );
 
+  // Function to pick and set image for editing
   async function pickEditImage() {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -330,6 +321,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           
           <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
+             {/* Show "Mark as Found" button only if the viewer is the owner of a lost post that hasn't been marked found yet */}
               {viewPost && user?.id === viewPost.user_id && 
                 viewPost.type === 'lost' && 
                 !viewPost.description?.includes('✅ This item has been found!') && (
@@ -344,6 +336,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                   </Button>
                 )}
 
+              {/* Post Details */}
               {viewPost && (
                 <>
                   <Text style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
@@ -380,6 +373,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                   <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
 
                   <Text style={styles.detailLabel}>Description</Text>
+                  {/* Show special found message styling if applicable */}
                   {viewPost.description?.includes('✅ This item has been found!') ? (
                     <View>
                       <Text style={styles.detailBody}>
@@ -473,31 +467,40 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
               <Button
                 mode="contained"
                 onPress={async () => {
-  if (!viewPost?.user_id) {
-    Alert.alert('Unavailable', 'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.');
-    return;
-  }
-  const { data, error } = await supabase.rpc('get_or_create_conversation', {
-    user1_id: user?.id,
-    user2_id: viewPost.user_id,
-    in_post_id: viewPost.id,
-  });
-  if (error) {
-    console.error('get_or_create_conversation failed:', error);
-    Alert.alert('Error', error.message);
-    return;
-  }
-  const cid = Array.isArray(data) ? data[0]?.conversation_id : (data as any)?.conversation_id;
-  if (!cid) {
-    Alert.alert('Error', 'Could not create or load the conversation.');
-    return;
-  }
-  navigation.navigate('Chat', {
-    conversationId: cid,
-    otherUserId: viewPost.user_id,
-    otherUserEmail: viewPost.user_email,
-  });
-                }}
+    if (!viewPost?.user_id) {
+      Alert.alert('Unavailable', 'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.');
+      return;
+    }
+
+    // Close the popup first so it doesn't persist over the Chat screen
+    setViewPost(null);
+    setTapPos(null);
+
+    const { data, error } = await supabase.rpc('get_or_create_conversation', {
+      user1_id: user?.id,
+      user2_id: viewPost.user_id,
+      in_post_id: viewPost.id,
+    });
+
+    if (error) {
+      console.error('get_or_create_conversation failed:', error);
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    const cid = Array.isArray(data) ? data[0]?.conversation_id : (data as any)?.conversation_id;
+    if (!cid) {
+      Alert.alert('Error', 'Could not create or load the conversation.');
+      return;
+    }
+
+    // Navigate after dialog is dismissed
+    navigation.navigate('Chat', {
+      conversationId: cid,
+      otherUserId: viewPost.user_id!,
+      otherUserEmail: viewPost.user_email ?? null,
+    });
+  }}
               >
                 Contact
               </Button>

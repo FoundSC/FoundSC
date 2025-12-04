@@ -1,3 +1,6 @@
+// Screen for requesting a password reset via email.
+// Uses AuthContext.resetPassword to trigger Supabase (or backend) password reset flow.
+
 import React, { useState } from 'react';
 import {
   View,
@@ -12,37 +15,47 @@ import { Button } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ForgotPasswordScreen({ navigation }: any) {
+  // Local form state for email and loading feedback
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Auth context provides resetPassword(email): Promise<{ error?: Error }>
   const { resetPassword } = useAuth();
 
+  // Handler to validate input and invoke the reset password flow
   const handleResetPassword = async () => {
+    // Simple validation: require non-empty email string
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email');
       return;
     }
 
     setLoading(true);
+    // Call into AuthContext; implementation should send reset instructions
     const { error } = await resetPassword(email);
     setLoading(false);
 
+    // Show success or error feedback
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       Alert.alert(
         'Success',
         'Password reset instructions have been sent to your email.',
+        // After success, return the user to Login screen
         [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
       );
     }
   };
 
   return (
+    // KeyboardAvoidingView ensures inputs remain visible when the keyboard opens
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <View style={styles.content}>
+        {/* Header: title and brief instructions */}
         <View style={styles.header}>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
@@ -50,6 +63,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
           </Text>
         </View>
 
+        {/* Form: email input and action buttons */}
         <View style={styles.form}>
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
@@ -64,6 +78,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
             />
           </View>
 
+          {/* Primary action: trigger reset flow; shows loading state */}
           <Button
             mode="contained"
             onPress={handleResetPassword}
@@ -75,6 +90,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
             Send Reset Link
           </Button>
 
+          {/* Secondary action: navigate back to Login */}
           <Button
             mode="text"
             onPress={() => navigation.navigate('Login')}
@@ -88,6 +104,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
   );
 }
 
+// Basic styles for layout and typography
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -1,3 +1,6 @@
+// Screen that lists only the current user's posts, with edit/delete actions.
+// Uses Supabase to query posts by user_id and AuthContext for authentication state.
+
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, Alert } from 'react-native';
 import { Button } from 'react-native-paper';
@@ -6,10 +9,14 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function MyPostsScreen({ navigation }: any) {
+  // Local state for user's posts and loading indicator
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Current authenticated user and signOut action
   const { user, signOut } = useAuth();
 
+  // Fetch only posts created by the current user
   const fetchMyPosts = async () => {
     if (!user) return;
 
@@ -28,10 +35,12 @@ export default function MyPostsScreen({ navigation }: any) {
     setLoading(false);
   };
 
+  // Load posts on mount and when the user changes
   useEffect(() => {
     fetchMyPosts();
   }, [user]);
 
+  // Persist edits to Supabase and refresh list
   const handleEdit = async (updatedPost: any) => {
     if (!user) {
       Alert.alert('Error', 'You must be logged in');
@@ -53,10 +62,11 @@ export default function MyPostsScreen({ navigation }: any) {
       Alert.alert('Update failed', error.message);
     } else {
       Alert.alert('Success', 'Post updated successfully');
-      fetchMyPosts(); // Refresh the list
+      fetchMyPosts(); // Refresh the list after successful update
     }
   };
 
+  // Delete a post and refresh the list
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('posts').delete().eq('id', id);
 
@@ -67,12 +77,14 @@ export default function MyPostsScreen({ navigation }: any) {
     }
   };
 
+  // Sign the user out and return to auth flow
   const handleLogout = async () => {
     await signOut();
   };
 
   return (
     <View style={styles.container}>
+      {/* Header with screen title and logout action */}
       <View style={styles.header}>
         <Text style={styles.title}>My Posts</Text>
         <Button mode="outlined" onPress={handleLogout} textColor="#ef4444">
@@ -80,12 +92,14 @@ export default function MyPostsScreen({ navigation }: any) {
         </Button>
       </View>
 
+      {/* Content area: loading state, empty state, or grid of posts */}
       <ScrollView style={styles.content}>
         {loading ? (
           <Text style={styles.loadingText}>Loading...</Text>
         ) : posts.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>You haven't created any posts yet</Text>
+            {/* Shortcut to home to create a post */}
             <Button
               mode="contained"
               onPress={() => navigation.navigate('Home')}
@@ -96,6 +110,7 @@ export default function MyPostsScreen({ navigation }: any) {
             </Button>
           </View>
         ) : (
+          // PostsGrid renders cards with edit/delete, using callbacks below
           <PostsGrid 
             posts={posts} 
             onEdit={handleEdit} 
@@ -111,7 +126,7 @@ export default function MyPostsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f5f5f5', 
   },
   header: {
     flexDirection: 'row',

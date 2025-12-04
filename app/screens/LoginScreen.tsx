@@ -1,3 +1,6 @@
+// LoginScreen: handles user sign-in via AuthContext.signIn and provides navigation
+// to Forgot Password, Sign Up, and Guest entry points.
+
 import React, { useState } from 'react';
 import {
   View,
@@ -16,8 +19,10 @@ export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
   const { signIn } = useAuth();
   
+  // Validate inputs and attempt sign-in; show error if authentication fails
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter email and password');
@@ -34,16 +39,20 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
+    // Keep inputs visible when the keyboard opens (padding on iOS, height on Android)
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {/* Scrollable content so the form doesn’t get cut off on small screens */}
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Heading copy */}
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue</Text>
         </View>
 
+        {/* Form: email and password inputs + actions */}
         <View style={styles.form}>
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
@@ -70,6 +79,7 @@ export default function LoginScreen({ navigation }: any) {
             />
           </View>
 
+          {/* Navigate to password reset flow */}
           <Button
             mode="text"
             onPress={() => navigation.navigate('ForgotPassword')}
@@ -78,6 +88,7 @@ export default function LoginScreen({ navigation }: any) {
             Forgot Password?
           </Button>
 
+          {/* Primary sign-in action; shows loading while authenticating */}
           <Button
             mode="contained"
             onPress={handleLogin}
@@ -89,6 +100,7 @@ export default function LoginScreen({ navigation }: any) {
             Sign In
           </Button>
 
+          {/* Sign-up prompt with inline navigation */}
           <View style={styles.signupPrompt}>
             <Text style={styles.signupText}>Don't have an account? </Text>
             <Button
@@ -100,12 +112,14 @@ export default function LoginScreen({ navigation }: any) {
             </Button>
           </View>
 
+          {/* Visual divider for guest option */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Guest mode bypasses authentication and enters the app */}
           <Button
             mode="outlined"
             onPress={() => navigation.replace('Main')}

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { View, TextInput, Button, Text, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
-// import { Picker } from '@react-native-picker/picker';
 
 
 export default function AddPostScreen({ navigation }) {
