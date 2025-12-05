@@ -4,6 +4,7 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Button } from 'react-native-paper';
 
+// Shared Post shape used by the grid view so the same objects can be passed into the map
 interface Post {
   id?: string | number;
   title?: string;
@@ -48,6 +49,7 @@ export default function PostsMapView({
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Track whether we've already chosen an initial region so we don't keep snapping back
   const [hasInitializedRegion, setHasInitializedRegion] = useState(false);
 
   // Determine preferred region: explicit initialRegion > first post coords > default
@@ -65,6 +67,7 @@ export default function PostsMapView({
     return DEFAULT_REGION;
   }, [initialRegion, posts]);
 
+  // Initialize the map region once from initialRegion, first post with coords, or user location
   useEffect(() => {
     if (hasInitializedRegion) return; // Do not override user-controlled panning after first init
 

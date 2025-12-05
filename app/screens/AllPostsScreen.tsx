@@ -596,6 +596,7 @@ export default function AllPostsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView>
+              {/* Modal header with title and explicit X close control */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Create New Post</Text>
                 <Text

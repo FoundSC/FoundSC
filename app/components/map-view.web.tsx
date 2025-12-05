@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Button } from 'react-native-paper';
 
+// Mirror the Post shape from the grid component so web map props stay compatible
 interface Post {
   id?: string | number;
   title?: string;

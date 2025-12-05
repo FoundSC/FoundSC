@@ -584,44 +584,59 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                 Edit
               </Button>
             )}
+            {/* Contact button for viewers; opens DM chat when signed in */}
             {viewPost && viewPost.user_id !== user?.id && (
               <Button
                 mode="contained"
                 onPress={async () => {
-    if (!viewPost?.user_id) {
-      Alert.alert('Unavailable', 'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.');
-      return;
-    }
+                  // Guests cannot start a direct message conversation
+                  if (!user) {
+                    Alert.alert(
+                      'Sign in required',
+                      'You cannot contact the poster as a guest. Please log in or create a profile to send a message.'
+                    );
+                    return;
+                  }
 
-    // Close the popup first so it doesn't persist over the Chat screen
-    setViewPost(null);
-    setTapPos(null);
+                  if (!viewPost?.user_id) {
+                    Alert.alert(
+                      'Unavailable',
+                      'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.'
+                    );
+                    return;
+                  }
 
-    const { data, error } = await supabase.rpc('get_or_create_conversation', {
-      user1_id: user?.id,
-      user2_id: viewPost.user_id,
-      in_post_id: viewPost.id,
-    });
+                  // Close the popup first so it doesn't persist over the Chat screen
+                  setViewPost(null);
+                  setTapPos(null);
 
-    if (error) {
-      console.error('get_or_create_conversation failed:', error);
-      Alert.alert('Error', error.message);
-      return;
-    }
+                  const { data, error } = await supabase.rpc('get_or_create_conversation', {
+                    user1_id: user.id,
+                    user2_id: viewPost.user_id,
+                    in_post_id: viewPost.id,
+                  });
 
-    const cid = Array.isArray(data) ? data[0]?.conversation_id : (data as any)?.conversation_id;
-    if (!cid) {
-      Alert.alert('Error', 'Could not create or load the conversation.');
-      return;
-    }
+                  if (error) {
+                    console.error('get_or_create_conversation failed:', error);
+                    Alert.alert('Error', error.message);
+                    return;
+                  }
 
-    // Navigate after dialog is dismissed
-    navigation.navigate('Chat', {
-      conversationId: cid,
-      otherUserId: viewPost.user_id!,
-      otherUserEmail: viewPost.user_email ?? null,
-    });
-  }}
+                  const cid = Array.isArray(data)
+                    ? data[0]?.conversation_id
+                    : (data as any)?.conversation_id;
+                  if (!cid) {
+                    Alert.alert('Error', 'Could not create or load the conversation.');
+                    return;
+                  }
+
+                  // Navigate after dialog is dismissed
+                  navigation.navigate('Chat', {
+                    conversationId: cid,
+                    otherUserId: viewPost.user_id!,
+                    otherUserEmail: viewPost.user_email ?? null,
+                  });
+                }}
               >
                 Contact
               </Button>
