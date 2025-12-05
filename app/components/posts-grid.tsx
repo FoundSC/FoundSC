@@ -59,6 +59,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
+  // Currently selected post for the detail dialog
   const [viewPost, setViewPost] = useState<Post | null>(null);
   const [tapPos, setTapPos] = useState<{ x: number; y: number } | null>(null);
   const [imageAspect, setImageAspect] = useState<number | null>(null);
@@ -114,6 +115,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     load();
   }, [viewPost?.id]);
 
+  // Create a new comment for the currently viewed post
   const handleAddComment = async () => {
     if (!viewPost?.id) return;
     const trimmed = newCommentBody.trim();
@@ -131,6 +133,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     }
   };
 
+  // Delete a single comment and optimistically remove it from local state
   const handleDeleteComment = async (commentId: number) => {
     try {
       await deleteComment(commentId);
@@ -572,6 +575,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           </Dialog.ScrollArea>
 
           <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            {/* Owner-only Edit button */}
             {viewPost && user?.id === viewPost.user_id && (
               <Button
                 mode="contained"
