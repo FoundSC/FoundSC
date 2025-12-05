@@ -31,19 +31,7 @@ export async function createExchange(
   finderId: string
 ) {
   try {
-    // First update the post status
-    const { error: postError } = await supabase
-      .from('posts')
-      .update({ status: 'in_exchange' })
-      .eq('id', postId)
-      .eq('user_id', postOwnerId); // Ensure owner can only update their own posts
-
-    if (postError) {
-      console.error('Error updating post status:', postError);
-      return { data: null, error: postError };
-    }
-
-    // Create the exchange
+    // Create the exchange first (RLS policy requires post status = 'active')
     const { data, error } = await supabase
       .from('exchanges')
       .insert({
@@ -57,14 +45,27 @@ export async function createExchange(
 
     if (error) {
       console.error('Error creating exchange:', error);
-      // Rollback post status if exchange creation fails
-      await supabase
-        .from('posts')
-        .update({ status: 'active' })
-        .eq('id', postId);
+      return { data: null, error };
     }
 
-    return { data, error };
+    // Then update the post status to 'in_exchange'
+    const { error: postError } = await supabase
+      .from('posts')
+      .update({ status: 'in_exchange' })
+      .eq('id', postId)
+      .eq('user_id', postOwnerId); // Ensure owner can only update their own posts
+
+    if (postError) {
+      console.error('Error updating post status:', postError);
+      // Rollback: delete the exchange if post update fails
+      await supabase
+        .from('exchanges')
+        .delete()
+        .eq('id', data.id);
+      return { data: null, error: postError };
+    }
+
+    return { data, error: null };
   } catch (err) {
     console.error('Exception creating exchange:', err);
     return { data: null, error: err };

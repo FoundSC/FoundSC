@@ -24,10 +24,12 @@ on public.conversations (
 -- RLS
 alter table public.conversations enable row level security;
 -- Select allowed to participants
-create policy if not exists "Conversations: participants can select" on public.conversations
+drop policy if exists "Conversations: participants can select" on public.conversations;
+create policy "Conversations: participants can select" on public.conversations
   for select using (auth.uid() = user_a or auth.uid() = user_b);
 -- Insert allowed only when the row includes the caller
-create policy if not exists "Conversations: participants can insert" on public.conversations
+drop policy if exists "Conversations: participants can insert" on public.conversations;
+create policy "Conversations: participants can insert" on public.conversations
   for insert with check (auth.uid() = user_a or auth.uid() = user_b);
 
 -- 2) get_or_create_conversation(user1, user2, post_id)
