@@ -17,6 +17,7 @@ import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { listComments, createComment, deleteComment, type Comment } from '../lib/comments';
 
 interface Post {
   id?: string | number;
@@ -63,6 +64,11 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [imageAspect, setImageAspect] = useState<number | null>(null);
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
+  // Comments state for the currently viewed post
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentBody, setNewCommentBody] = useState('');
+
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -87,6 +93,52 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       setImageAspect(null);
     }
   }, [viewPost]);
+
+  // Load comments whenever a post is opened in the detail dialog
+  useEffect(() => {
+    const load = async () => {
+      if (!viewPost?.id) {
+        setComments([]);
+        return;
+      }
+      try {
+        setCommentsLoading(true);
+        const data = await listComments(Number(viewPost.id));
+        setComments(data);
+      } catch (e) {
+        console.error('Failed to load comments', e);
+      } finally {
+        setCommentsLoading(false);
+      }
+    };
+    load();
+  }, [viewPost?.id]);
+
+  const handleAddComment = async () => {
+    if (!viewPost?.id) return;
+    const trimmed = newCommentBody.trim();
+    if (!trimmed) return;
+    if (!user) {
+      Alert.alert('Sign in required', 'Please log in to add a comment.');
+      return;
+    }
+    try {
+      const created = await createComment(Number(viewPost.id), trimmed, user.id);
+      setComments((prev) => [created, ...prev]);
+      setNewCommentBody('');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to delete comment');
+    }
+  };
 
   // Function to handle marking a post as found
   // Only for lost posts owned by the current user
@@ -445,6 +497,75 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                       Item not on map
                     </Text>
                   )}
+
+                  {/* Comments Section */}
+                  <Text style={styles.detailLabel}>Comments</Text>
+                  {commentsLoading ? (
+                    <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                      Loading comments...
+                    </Text>
+                  ) : comments.length === 0 ? (
+                    <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                      No comments yet.
+                    </Text>
+                  ) : (
+                    <View style={{ marginBottom: 12 }}>
+                      {comments.map((c) => (
+                        <View
+                          key={c.id}
+                          style={{
+                            paddingVertical: 6,
+                            borderBottomWidth: 1,
+                            borderBottomColor: '#e5e7eb',
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                          }}
+                        >
+                          <View style={{ flex: 1, paddingRight: 8 }}>
+                            <Text style={{ fontSize: 13, color: '#111827' }}>{c.body}</Text>
+                            <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                              {new Date(c.created_at).toLocaleString()}
+                            </Text>
+                          </View>
+                          {user && user.id === c.author_id && (
+                            <IconButton
+                              icon="delete"
+                              size={16}
+                              onPress={() => handleDeleteComment(c.id)}
+                            />
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* New Comment Input (only meaningful when logged in) */}
+                  <View style={{ marginTop: 4, marginBottom: 8 }}>
+                    <TextInput
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#d1d5db',
+                        borderRadius: 8,
+                        padding: 10,
+                        fontSize: 14,
+                        minHeight: 40,
+                      }}
+                      placeholder={user ? 'Add a comment...' : 'Log in to add a comment'}
+                      value={newCommentBody}
+                      onChangeText={setNewCommentBody}
+                      editable={!!user}
+                      multiline
+                    />
+                    <Button
+                      mode="contained"
+                      onPress={handleAddComment}
+                      disabled={!user || !newCommentBody.trim()}
+                      style={{ marginTop: 6, alignSelf: 'flex-end' }}
+                    >
+                      Post Comment
+                    </Button>
+                  </View>
                 </>
               )}
             </ScrollView>

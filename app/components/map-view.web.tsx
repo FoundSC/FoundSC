@@ -3,15 +3,15 @@ import { View, StyleSheet, Text } from 'react-native';
 import { Button } from 'react-native-paper';
 
 interface Post {
-  id: number;
-  title: string;
-  description: string;
-  type: 'lost' | 'found';
-  category: string;
-  latitude: number | null;
-  longitude: number | null;
-  image_url: string | null;
-  created_at: string;
+  id?: string | number;
+  title?: string;
+  description?: string;
+  type?: string;
+  category?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  image_url?: string | null;
+  created_at?: string;
 }
 
 interface PostsMapViewProps {

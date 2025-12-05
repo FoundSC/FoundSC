@@ -5,22 +5,22 @@ import * as Location from 'expo-location';
 import { Button } from 'react-native-paper';
 
 interface Post {
-  id: number;
-  title: string;
-  description: string;
-  type: 'lost' | 'found';
-  category: string;
-  latitude: number | null;
-  longitude: number | null;
-  image_url: string | null;
-  created_at: string;
+  id?: string | number;
+  title?: string;
+  description?: string;
+  type?: string;
+  category?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  image_url?: string | null;
+  created_at?: string;
 }
 
 interface PostsMapViewProps {
   posts: Post[];
-  initialRegion?: Region;            // NEW
-  height?: number;                   // NEW
-  interactive?: boolean;             // NEW
+  initialRegion?: Region;
+  height?: number;
+  interactive?: boolean;
   onBoundsChange?: (bounds: {
     north: number;
     south: number;
@@ -48,6 +48,7 @@ export default function PostsMapView({
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasInitializedRegion, setHasInitializedRegion] = useState(false);
 
   // Determine preferred region: explicit initialRegion > first post coords > default
   const preferredRegion = useMemo<Region>(() => {
@@ -65,14 +66,17 @@ export default function PostsMapView({
   }, [initialRegion, posts]);
 
   useEffect(() => {
+    if (hasInitializedRegion) return; // Do not override user-controlled panning after first init
+
     // If we already have an item-based or provided region, use it and skip user location
     const hasItemCoords = posts.some(p => p.latitude && p.longitude);
     if (initialRegion || hasItemCoords) {
       setRegion(preferredRegion);
       setLoading(false);
+      setHasInitializedRegion(true);
       return;
     }
-    // Fallback: try user location
+    // Fallback: try user location once
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -97,9 +101,10 @@ export default function PostsMapView({
         setRegion(preferredRegion);
       } finally {
         setLoading(false);
+        setHasInitializedRegion(true);
       }
     })();
-  }, [preferredRegion, initialRegion, posts]);
+  }, [preferredRegion, initialRegion, posts, hasInitializedRegion]);
 
   const handleRegionChangeComplete = useCallback(
     (r: Region) => {

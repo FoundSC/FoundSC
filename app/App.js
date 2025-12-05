@@ -18,7 +18,6 @@ import { Provider as PaperProvider, Button } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 
-import { createClient } from '@supabase/supabase-js';
 import Header from './components/header';
 import { Hero } from './components/hero';
 import PostsMapView from './components/map-view';
@@ -82,8 +81,9 @@ export default function App() {
     }
   };
 
+  // Open the system image picker and let the user select a photo for a new post
   async function pickImage() {
-    // On web, the picker doesn't require permissions in the same way
+    // Request media library permissions on native platforms (web doesn't need this)
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -99,10 +99,12 @@ export default function App() {
         allowsEditing: true,
         quality: 0.85,
       });
+      // User canceled the picker
       if (result.canceled) {
         console.log('[pickImage] selection canceled');
         return;
       }
+      // If at least one asset was returned, store its URI in state
       if (result.assets?.length) {
         console.log('[pickImage] selected', result.assets[0].uri);
         setNewImageUri(result.assets[0].uri);
@@ -114,20 +116,26 @@ export default function App() {
     }
   }
 
+  // Infer an appropriate MIME type from a file URI/extension
   function guessMimeFromUri(uri) {
     const lower = (uri || '').toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
     if (lower.endsWith('.webp')) return 'image/webp';
     if (lower.endsWith('.heic') || lower.endsWith('.heif')) return 'image/heic';
+    // Default to jpeg if we don't recognize the extension
     return 'image/jpeg';
   }
 
+  // Upload the selected image to Supabase Storage and return its public URL
   async function uploadImageIfNeeded(uri) {
+    // If no image was selected, skip the upload entirely
     if (!uri) return null;
     try {
+      // Build a unique path inside the post-images bucket
       const fileName = `uploads/${Date.now()}_${uri.split('/').pop() || 'image.jpg'}`;
       console.log('[upload] starting', { uri, fileName });
 
+      // Fetch the local URI into an ArrayBuffer so we can upload raw bytes
       const res = await fetch(uri);
       if (!res.ok) {
         console.error('[upload] fetch failed', res.status);
@@ -138,6 +146,7 @@ export default function App() {
       const contentType = guessMimeFromUri(uri);
       console.log('[upload] buffer built', { bytes: bytes.byteLength, contentType });
 
+      // Simple retry loop to be resilient to transient 5xx errors from storage
       const maxAttempts = 3;
       let lastError = null;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -160,6 +169,7 @@ export default function App() {
           'status:',
           status
         );
+        // Only retry for typical server-side failures (5xx, internal error)
         const retryable = String(error?.message || '').includes('Internal Server Error') || (status >= 500 && status < 600);
         if (attempt < maxAttempts && retryable) {
           await new Promise((r) => setTimeout(r, 300 * attempt));
@@ -167,11 +177,13 @@ export default function App() {
         }
         break;
       }
+      // If we still have an error after retries, give up and return null
       if (lastError) {
         console.error('[upload] supabase upload error via blob:', lastError?.message || lastError);
         return null;
       }
 
+      // Generate a publicly accessible URL for the uploaded image
       const { data } = supabase.storage.from('post-images').getPublicUrl(fileName);
       const publicUrl = data?.publicUrl || null;
       console.log('[upload] publicUrl', publicUrl);
@@ -182,11 +194,15 @@ export default function App() {
     }
   }
 
+  // Turn a free-form text description into a list of meaningful keywords
   function extractKeywords(text) {
+    // Very small stop-word list to ignore extremely common words
     const stop = new Set(['the','and','for','with','that','this','you','your','from','near','lost','found','item','items','a','an','of','to','in','on','at','is','it']);
     return String(text || '')
       .toLowerCase()
+      // Split on non-alphanumeric boundaries
       .split(/[^a-z0-9]+/g)
+      // Keep only words with length >= 3 that are not stop words
       .filter((w) => w && w.length >= 3 && !stop.has(w));
   }
 
@@ -316,7 +332,24 @@ export default function App() {
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
                 <ScrollView>
-                  <Text style={styles.modalTitle}>Create New Post</Text>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Create New Post</Text>
+                    <Text
+                      style={styles.modalClose}
+                      onPress={() => {
+                        closeModal();
+                        setNewTitle('');
+                        setNewContent('');
+                        setNewType('');
+                        setNewCategory('');
+                        setNewImageUri(null);
+                        setNewLatitude(null);
+                        setNewLongitude(null);
+                      }}
+                    >
+                      ×
+                    </Text>
+                  </View>
                   <Text style={styles.modalDescription}>
                     Add a new post to your feed.
                   </Text>
@@ -479,10 +512,20 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '80%',
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  modalClose: {
+    fontSize: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   modalDescription: {
     fontSize: 14,

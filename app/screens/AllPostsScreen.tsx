@@ -596,7 +596,24 @@ export default function AllPostsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView>
-              <Text style={styles.modalTitle}>Create New Post</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create New Post</Text>
+                <Text
+                  style={styles.modalClose}
+                  onPress={() => {
+                    closeModal();
+                    setNewTitle('');
+                    setNewContent('');
+                    setNewType('');
+                    setNewCategory('');
+                    setNewImageUri(null);
+                    setNewLatitude(null);
+                    setNewLongitude(null);
+                  }}
+                >
+                  ×
+                </Text>
+              </View>
               <Text style={styles.modalDescription}>
                 Add a new post to your feed.
               </Text>
@@ -798,10 +815,20 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '80%',
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  modalClose: {
+    fontSize: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   modalDescription: {
     fontSize: 14,
