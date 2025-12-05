@@ -846,48 +846,4 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 12,
   },
-
-  // Report form styles
-  reportContainer: {
-    width: '100%',
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-    gap: 8,
-  },
-  reportTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 4,
-  },
-  reportLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  reportInput: {
-    backgroundColor: '#f9f9f9',
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  reportTextarea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  reportRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 4,
-  },
-  reportAnonText: {
-    fontSize: 14,
-    color: '#333',
-  },
 });

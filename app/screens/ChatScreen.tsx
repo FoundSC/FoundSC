@@ -8,10 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Text,
+  TouchableOpacity,
 } from 'react-native';
-import { TextInput, IconButton } from 'react-native-paper';
+import { TextInput, IconButton, Button } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 interface Message {
   id: string;
@@ -26,6 +28,7 @@ export default function ChatScreen({ route }: any) {
 
   // Current authenticated user
   const { user } = useAuth();
+  const navigation = useNavigation<any>();
 
   // Local state: message list, draft message, pull-to-refresh flag
   const [messages, setMessages] = useState<Message[]>([]);
@@ -90,18 +93,27 @@ export default function ChatScreen({ route }: any) {
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
 
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: user.id,
-      content: newMessage.trim(),
-    });
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: newMessage.trim(),
+      })
+      .select('*')
+      .single();
 
     if (error) {
       console.error('Error sending message:', error);
       return;
     }
 
-    // Clear draft; the realtime subscription will add the message to the list
+    if (data) {
+      // Optimistically append the new message locally so it appears immediately
+      setMessages((prev) => [...prev, data as Message]);
+      flatListRef.current?.scrollToEnd();
+    }
+
     setNewMessage('');
   };
 
@@ -135,9 +147,30 @@ export default function ChatScreen({ route }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
-      {/* Header shows the other participant's email */}
+      {/* Header shows the other participant's email and provides a clear Report/User Profile action */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>{otherUserEmail}</Text>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('UserProfile', {
+              userId: otherUserId,
+            })
+          }
+        >
+          <Text style={styles.headerText}>{otherUserEmail}</Text>
+        </TouchableOpacity>
+        <Button
+          mode="outlined"
+          compact
+          style={styles.headerActionButton}
+          onPress={() =>
+            navigation.navigate('UserProfile', {
+              userId: otherUserId,
+            })
+          }
+          icon="account-alert"
+        >
+          Report user
+        </Button>
       </View>
 
       {/* Message list with auto-scroll to bottom on content size change and pull-to-refresh */}
@@ -190,6 +223,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  headerActionButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
   headerText: { fontSize: 18, fontWeight: '600' },
   messagesList: { padding: 16 },

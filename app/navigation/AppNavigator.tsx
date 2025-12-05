@@ -14,11 +14,14 @@ import MessagesScreen from '../screens/MessagesScreen';
 import { View, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ChatScreen from '../screens/ChatScreen';
+import AdminReportsScreen from '../(tabs)/admin';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
+  const { isAdmin } = useIsAdmin();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -57,6 +60,18 @@ function MainTabs() {
           ),
         }}
       />
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminReportsScreen}
+          options={{
+            tabBarLabel: 'Admin',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="shield-account" color={color} size={size} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
@@ -84,24 +99,25 @@ export default function AppNavigator() {
           </>
         )}
 
-        {/* Main app + Chat - only when authenticated */}
+        {/* Main app tabs - available to guests and authenticated users */}
+        <Stack.Screen name="Main" component={MainTabs} />
+
+        {/* Authenticated-only screens (Chat, UserProfile, EditProfile, Rating) */}
         {user && (
           <>
-            <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
               options={{ headerShown: true, title: 'Chat' }}
             />
-          </>
-        )}
-
-        {/*
-          Additional screens with headers (EditProfile, Rating)
-          Only accessible when authenticated
-        */}
-        {user && (
-          <>
+            <Stack.Screen
+              name="UserProfile"
+              component={ProfileScreen}
+              options={{
+                headerShown: true,
+                title: 'User Profile',
+              }}
+            />
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
