@@ -17,7 +17,8 @@ import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { listComments, createComment, deleteComment, type Comment } from '../lib/comments';
+import RateFinderModal from './rate-finder-modal';
+import { createSuccessfulReturn, rateUser } from '../lib/returns';
 
 interface Post {
   id?: string | number;
@@ -50,11 +51,14 @@ type RootStackParamList = {
     otherUserId: string;
     otherUserEmail: string | null;
   };
+  Rating: {
+    exchangeId: number;
+  };
 };
 
 export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsGridProps) {
   const { user } = useAuth();
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>(); // Use any for navigation to support multiple screen types
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
@@ -65,10 +69,16 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [imageAspect, setImageAspect] = useState<number | null>(null);
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
-  // Comments state for the currently viewed post
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [newCommentBody, setNewCommentBody] = useState('');
+  // User selection dialog for mark as found flow
+  const [userSelectionVisible, setUserSelectionVisible] = useState(false);
+  const [contactedUsers, setContactedUsers] = useState<any[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [selectedPostForRating, setSelectedPostForRating] = useState<Post | null>(null);
+
+  // Rating modal state
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [finderToRate, setFinderToRate] = useState<any>(null);
+  const [returnedPostId, setReturnedPostId] = useState<number | null>(null);
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -95,83 +105,182 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     }
   }, [viewPost]);
 
-  // Load comments whenever a post is opened in the detail dialog
-  useEffect(() => {
-    const load = async () => {
-      if (!viewPost?.id) {
-        setComments([]);
-        return;
-      }
-      try {
-        setCommentsLoading(true);
-        const data = await listComments(Number(viewPost.id));
-        setComments(data);
-      } catch (e) {
-        console.error('Failed to load comments', e);
-      } finally {
-        setCommentsLoading(false);
-      }
-    };
-    load();
-  }, [viewPost?.id]);
+  // Helper function to mark post as found without rating (when no contacts)
+  const markPostAsFoundOnly = async (post: Post) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        is_found: true,
+        active: false,
+        description: `${post.description || ''}\n✅ This item has been found!`
+      })
+      .eq('id', post.id);
 
-  // Create a new comment for the currently viewed post
-  const handleAddComment = async () => {
-    if (!viewPost?.id) return;
-    const trimmed = newCommentBody.trim();
-    if (!trimmed) return;
-    if (!user) {
-      Alert.alert('Sign in required', 'Please log in to add a comment.');
-      return;
-    }
-    try {
-      const created = await createComment(Number(viewPost.id), trimmed, user.id);
-      setComments((prev) => [created, ...prev]);
-      setNewCommentBody('');
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to add comment');
-    }
-  };
-
-  // Delete a single comment and optimistically remove it from local state
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      await deleteComment(commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to delete comment');
+    if (error) {
+      console.error('Error marking post as found:', error);
+      Alert.alert('Error', 'Failed to mark post as found');
+    } else {
+      // Refresh posts and close dialog
+      if (onRefresh) onRefresh();
+      setViewPost(null);
     }
   };
 
   // Function to handle marking a post as found
-  // Only for lost posts owned by the current user
+  // Shows user selection dialog to choose who helped find the item
   const handleMarkFound = async (post: Post) => {
     if (!user || user.id !== post.user_id) {
       Alert.alert('Not allowed', 'You can only mark your own posts as found.');
       return;
     }
 
-    setUpdatingId(post.id!);
-    const { error } = await supabase
-      .from('posts')
-      .update({ 
-        description: `${post.description || ''}\n✅ This item has been found!`
-      })
-      .eq('id', post.id);
+    setSelectedPostForRating(post);
+    setLoadingContacts(true);
+    setUserSelectionVisible(true);
+
+    // Fetch all users who contacted this post
+    const { data, error } = await supabase.rpc('get_post_contacts', {
+      in_post_id: post.id,
+    });
+
+    setLoadingContacts(false);
 
     if (error) {
-      Alert.alert('Update failed', error.message);
-    } else {
-      Alert.alert('Success', 'Post updated with found status');
-      if (viewPost?.id === post.id) {
-        setViewPost({ 
-          ...viewPost, 
-          description: `${viewPost.description || ''}\n✅ This item has been found!`
-        });
-      }
-      onRefresh && onRefresh();
+      console.error('Error fetching contacted users:', error);
+      Alert.alert('Error', 'Failed to load contacted users');
+      setUserSelectionVisible(false);
+      return;
     }
-    setUpdatingId(null);
+
+    if (!data || data.length === 0) {
+      setUserSelectionVisible(false);
+      Alert.alert(
+        'No Contacts',
+        'No one has contacted you about this post yet. Are you sure you want to mark it as found?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              await markPostAsFoundOnly(post);
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    setContactedUsers(data);
+  };
+
+  // Handle user selection - create successful return and show rating modal
+  const handleUserSelected = async (selectedUser: any) => {
+    if (!selectedPostForRating || !user) return;
+
+    setUserSelectionVisible(false);
+
+    // Create successful return (this also marks post as found)
+    const { data: returnData, error } = await createSuccessfulReturn(
+      selectedPostForRating.id as number,
+      user.id,
+      selectedUser.user_id
+    );
+
+    if (error) {
+      Alert.alert('Error', 'Failed to mark as found. Please try again.');
+      console.error('Error creating successful return:', error);
+      return;
+    }
+
+    // Show rating modal immediately
+    setFinderToRate(selectedUser);
+    setReturnedPostId(selectedPostForRating.id as number);
+    setRatingModalVisible(true);
+    setViewPost(null);
+    setSelectedPostForRating(null);
+  };
+
+  // Handle rating submission
+  const handleRatingSubmit = async (rating: number, comment: string) => {
+    if (!finderToRate || !returnedPostId || !user) return;
+
+    const { success, error } = await rateUser(
+      user.id,
+      finderToRate.user_id,
+      returnedPostId,
+      rating,
+      comment
+    );
+
+    setRatingModalVisible(false);
+
+    if (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Note', 'Item marked as found, but rating could not be saved.');
+    } else {
+      Alert.alert('Success', 'Thank you for your rating!');
+    }
+
+    // Refresh posts
+    if (onRefresh) onRefresh();
+    setFinderToRate(null);
+    setReturnedPostId(null);
+  };
+
+  // Handle skip rating
+  const handleSkipRating = () => {
+    setRatingModalVisible(false);
+    setFinderToRate(null);
+    setReturnedPostId(null);
+    Alert.alert('Success', 'Item marked as found!');
+    if (onRefresh) onRefresh();
+  };
+
+  // Function to unmark a post as found (revert to active)
+  const handleUnmark = async (post: Post) => {
+    if (!user || user.id !== post.user_id) {
+      Alert.alert('Not allowed', 'You can only unmark your own posts.');
+      return;
+    }
+
+    Alert.alert(
+      'Unmark as Found',
+      'Are you sure you want to mark this post as active again?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            // Remove the found message from description
+            const cleanedDescription = post.description?.replace('\n✅ This item has been found!', '') || '';
+
+            const { error } = await supabase
+              .from('posts')
+              .update({
+                is_found: false,
+                active: true,
+                description: cleanedDescription
+              })
+              .eq('id', post.id);
+
+            if (error) {
+              console.error('Error unmarking post:', error);
+              Alert.alert('Error', 'Failed to unmark post');
+            } else {
+              // Update viewPost if it's the current one
+              if (viewPost?.id === post.id) {
+                setViewPost({
+                  ...viewPost,
+                  description: cleanedDescription
+                });
+              }
+              // Refresh posts
+              if (onRefresh) onRefresh();
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Handle editing a post
@@ -376,10 +485,20 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           
           <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
-             {/* Show "Mark as Found" button only if the viewer is the owner of a lost post that hasn't been marked found yet */}
-              {viewPost && user?.id === viewPost.user_id && 
-                viewPost.type === 'lost' && 
-                !viewPost.description?.includes('✅ This item has been found!') && (
+             {/* Show "Mark as Found" or "Unmark" button for lost posts owned by the user */}
+              {viewPost && user?.id === viewPost.user_id && viewPost.type === 'lost' && (
+                viewPost.description?.includes('✅ This item has been found!') ? (
+                  // Show Unmark button if already marked as found
+                  <Button
+                    mode="contained"
+                    onPress={() => handleUnmark(viewPost)}
+                    style={{ marginTop: 8, marginBottom: 12 }}
+                    buttonColor="#dc2626"
+                  >
+                    Unmark
+                  </Button>
+                ) : (
+                  // Show Mark as Found button if not yet marked
                   <Button
                     mode="contained"
                     onPress={() => handleMarkFound(viewPost)}
@@ -389,7 +508,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                   >
                     Mark as Found
                   </Button>
-                )}
+                )
+              )}
 
               {/* Post Details */}
               {viewPost && (
@@ -763,7 +883,97 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
             <Button onPress={confirmDelete}>Delete</Button>
           </Dialog.Actions>
         </Dialog>
+
+        {/* User Selection Dialog for Mark as Found */}
+        <Dialog
+          visible={userSelectionVisible}
+          onDismiss={() => setUserSelectionVisible(false)}
+          style={{ maxHeight: '70%', backgroundColor: '#fff' }}
+        >
+          <Dialog.Title style={{ backgroundColor: '#fff', color: '#111827' }}>
+            Select Who Found the Item
+          </Dialog.Title>
+          <Dialog.Content style={{ backgroundColor: '#fff' }}>
+            <Text style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
+              Choose the person who helped you retrieve your item to rate them.
+            </Text>
+            {loadingContacts ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: '#666' }}>Loading contacts...</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 400 }}>
+                {contactedUsers.map((contactUser, index) => (
+                  <TouchableOpacity
+                    key={contactUser.user_id}
+                    onPress={() => handleUserSelected(contactUser)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 12,
+                      marginBottom: 8,
+                      backgroundColor: '#f9fafb',
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#e5e7eb',
+                    }}
+                  >
+                    {contactUser.profile_picture ? (
+                      <Image
+                        source={{ uri: contactUser.profile_picture }}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          marginRight: 12,
+                          backgroundColor: '#f0f0f0',
+                        }}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          marginRight: 12,
+                          backgroundColor: '#e5e7eb',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <IconButton icon="account" size={24} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: '#111' }}>
+                        {contactUser.display_name || contactUser.user_email || 'Anonymous'}
+                      </Text>
+                      {contactUser.last_message_time && (
+                        <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                          Last contacted:{' '}
+                          {new Date(contactUser.last_message_time).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
+                    <IconButton icon="chevron-right" size={20} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            <Button onPress={() => setUserSelectionVisible(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
       </Portal>
+
+      {/* Rating Modal - Shows after selecting finder */}
+      <RateFinderModal
+        visible={ratingModalVisible}
+        finderName={finderToRate?.display_name || finderToRate?.user_email || 'this user'}
+        onSubmit={handleRatingSubmit}
+        onSkip={handleSkipRating}
+      />
     </View>
   );
 }

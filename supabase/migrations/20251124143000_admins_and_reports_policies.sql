@@ -20,8 +20,9 @@ $$;
 alter table public.reports enable row level security;
 
 -- Allow admins to select all reports; reporters can read their own (keeps existing policy working)
--- If a similar policy exists, this one further grants access when is_admin() is true
-create policy if not exists reports_select_admin_all
+-- Drop existing policies if they exist and recreate them
+drop policy if exists reports_select_admin_all on public.reports;
+create policy reports_select_admin_all
 on public.reports
 for select
 using (
@@ -29,14 +30,16 @@ using (
 );
 
 -- Allow admins to update reports (e.g., change status)
-create policy if not exists reports_update_admin
+drop policy if exists reports_update_admin on public.reports;
+create policy reports_update_admin
 on public.reports
 for update
 using (public.is_admin())
 with check (public.is_admin());
 
 -- Optional: prevent non-admin deletes; admins can delete
-create policy if not exists reports_delete_admin
+drop policy if exists reports_delete_admin on public.reports;
+create policy reports_delete_admin
 on public.reports
 for delete
 using (public.is_admin());

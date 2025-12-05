@@ -12,7 +12,8 @@ import {
   TextInput,
   Switch,
 } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Button, Portal, Dialog, IconButton } from 'react-native-paper';
+import PostsMapView from '../components/map-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { StarRatingDisplay } from '../components/star-rating';
@@ -22,6 +23,8 @@ import AlertsModal from '../components/alerts';
 import FloatingActionButton from '../components/floating-action-button';
 import { useAddPost } from '../contexts/AddPostContext';
 import { createReport } from '../lib/reports';
+import RateFinderModal from '../components/rate-finder-modal';
+import { createSuccessfulReturn, rateUser } from '../lib/returns';
 
 /**
  * ProfileScreen Component
@@ -65,6 +68,21 @@ export default function ProfileScreen({ route, navigation }: any) {
   const [reportAnonymous, setReportAnonymous] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
 
+  // State for post detail modal
+  const [viewPost, setViewPost] = useState<any | null>(null);
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
+
+  // User selection dialog for mark as found flow
+  const [userSelectionVisible, setUserSelectionVisible] = useState(false);
+  const [contactedUsers, setContactedUsers] = useState<any[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [selectedPostForRating, setSelectedPostForRating] = useState<any | null>(null);
+
+  // Rating modal state
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [finderToRate, setFinderToRate] = useState<any>(null);
+  const [returnedPostId, setReturnedPostId] = useState<number | null>(null);
+
   useEffect(() => {
     if (profileUserId) {
       loadProfileData();
@@ -72,6 +90,199 @@ export default function ProfileScreen({ route, navigation }: any) {
       setLoading(false);
     }
   }, [profileUserId]);
+
+  // Calculate image aspect ratio when viewing post
+  useEffect(() => {
+    if (viewPost?.image_url) {
+      Image.getSize(
+        viewPost.image_url,
+        (w, h) => {
+          if (w > 0 && h > 0) setImageAspect(w / h);
+        },
+        () => setImageAspect(null)
+      );
+    } else {
+      setImageAspect(null);
+    }
+  }, [viewPost]);
+
+  // Helper function to mark post as found without rating (when no contacts)
+  const markPostAsFoundOnly = async (post: any) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        is_found: true,
+        active: false,
+        description: `${post.description || ''}\n✅ This item has been found!`
+      })
+      .eq('id', post.id);
+
+    if (error) {
+      console.error('Error marking post as found:', error);
+      Alert.alert('Error', 'Failed to mark post as found');
+    } else {
+      // Refresh posts and close dialog
+      await loadUserPosts();
+      setViewPost(null);
+    }
+  };
+
+  // Function to handle marking a post as found
+  const handleMarkFound = async (post: any) => {
+    if (!user || user.id !== post.user_id) {
+      Alert.alert('Not allowed', 'You can only mark your own posts as found.');
+      return;
+    }
+
+    setSelectedPostForRating(post);
+    setLoadingContacts(true);
+    setUserSelectionVisible(true);
+
+    // Fetch all users who contacted this post
+    const { data, error } = await supabase.rpc('get_post_contacts', {
+      in_post_id: post.id,
+    });
+
+    setLoadingContacts(false);
+
+    if (error) {
+      console.error('Error fetching contacted users:', error);
+      Alert.alert('Error', 'Failed to load contacted users');
+      setUserSelectionVisible(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setUserSelectionVisible(false);
+      Alert.alert(
+        'No Contacts',
+        'No one has contacted you about this post yet. Are you sure you want to mark it as found?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              await markPostAsFoundOnly(post);
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    setContactedUsers(data);
+  };
+
+  // Handle user selection - create successful return and show rating modal
+  const handleUserSelected = async (selectedUser: any) => {
+    if (!selectedPostForRating || !user) return;
+
+    setUserSelectionVisible(false);
+
+    // Create successful return (this also marks post as found)
+    const { data: returnData, error } = await createSuccessfulReturn(
+      selectedPostForRating.id as number,
+      user.id,
+      selectedUser.user_id
+    );
+
+    if (error) {
+      Alert.alert('Error', 'Failed to mark as found. Please try again.');
+      console.error('Error creating successful return:', error);
+      return;
+    }
+
+    // Show rating modal immediately
+    setFinderToRate(selectedUser);
+    setReturnedPostId(selectedPostForRating.id as number);
+    setRatingModalVisible(true);
+    setViewPost(null);
+    setSelectedPostForRating(null);
+  };
+
+  // Handle rating submission
+  const handleRatingSubmit = async (rating: number, comment: string) => {
+    if (!finderToRate || !returnedPostId || !user) return;
+
+    const { success, error } = await rateUser(
+      user.id,
+      finderToRate.user_id,
+      returnedPostId,
+      rating,
+      comment
+    );
+
+    setRatingModalVisible(false);
+
+    if (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Note', 'Item marked as found, but rating could not be saved.');
+    } else {
+      Alert.alert('Success', 'Thank you for your rating!');
+    }
+
+    // Refresh posts
+    await loadUserPosts();
+    setFinderToRate(null);
+    setReturnedPostId(null);
+  };
+
+  // Handle skip rating
+  const handleSkipRating = async () => {
+    setRatingModalVisible(false);
+    setFinderToRate(null);
+    setReturnedPostId(null);
+    Alert.alert('Success', 'Item marked as found!');
+    await loadUserPosts();
+  };
+
+  // Function to unmark a post as found (revert to active)
+  const handleUnmark = async (post: any) => {
+    if (!user || user.id !== post.user_id) {
+      Alert.alert('Not allowed', 'You can only unmark your own posts.');
+      return;
+    }
+
+    Alert.alert(
+      'Unmark as Found',
+      'Are you sure you want to mark this post as active again?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            // Remove the found message from description
+            const cleanedDescription = post.description?.replace('\n✅ This item has been found!', '') || '';
+
+            const { error } = await supabase
+              .from('posts')
+              .update({
+                is_found: false,
+                active: true,
+                description: cleanedDescription
+              })
+              .eq('id', post.id);
+
+            if (error) {
+              console.error('Error unmarking post:', error);
+              Alert.alert('Error', 'Failed to unmark post');
+            } else {
+              // Update viewPost if it's the current one
+              if (viewPost?.id === post.id) {
+                setViewPost({
+                  ...viewPost,
+                  is_found: false,
+                  description: cleanedDescription
+                });
+              }
+              // Refresh posts
+              await loadUserPosts();
+            }
+          }
+        }
+      ]
+    );
+  };
 
   /**
    * Load all profile data (profile info, posts, ratings)
@@ -207,22 +418,32 @@ export default function ProfileScreen({ route, navigation }: any) {
    * @param item - Post object from database
    */
   const renderPostCard = (item: any) => {
-    // Status badge colors
-    // green = found items returned to owner
-    // amber = currently being exchanged
-    // blue = still available/active
-    const statusColors: Record<string, string> = {
-      found: '#4CAF50',
-      in_exchange: '#FF9800',
-      active: '#2196F3',
+    // Determine status display - prioritize is_found over status field
+    const getStatusInfo = (post: any) => {
+      if (post.is_found) {
+        return { label: 'found', color: '#4CAF50' };
+      }
+
+      const statusColors: Record<string, string> = {
+        in_exchange: '#FF9800',
+        completed: '#4CAF50',
+        cancelled: '#dc2626',
+        active: '#2196F3',
+      };
+
+      return {
+        label: post.status || 'active',
+        color: statusColors[post.status] || '#2196F3'
+      };
     };
 
-    // TODO: Implement PostDetail screen
+    const statusInfo = getStatusInfo(item);
+
     return (
       <TouchableOpacity
         key={item.id}
         style={styles.postCard}
-        // onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        onPress={() => setViewPost(item)}
       >
         {item.image_url && (
           <Image
@@ -240,10 +461,10 @@ export default function ProfileScreen({ route, navigation }: any) {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusColors[item.status] || '#999' },
+                { backgroundColor: statusInfo.color },
               ]}
             >
-              <Text style={styles.statusText}>{item.status}</Text>
+              <Text style={styles.statusText}>{statusInfo.label}</Text>
             </View>
             <Text style={styles.postDate}>
               {new Date(item.created_at).toLocaleDateString()}
@@ -553,6 +774,297 @@ export default function ProfileScreen({ route, navigation }: any) {
         onDismiss={() => setAlertsVisible(false)}
       />
       </ScrollView>
+
+      {/* Post Detail Modal */}
+      <Portal>
+        <Dialog
+          visible={!!viewPost}
+          onDismiss={() => setViewPost(null)}
+          style={{ maxHeight: '85%', backgroundColor: '#fff' }}
+        >
+          <Dialog.Title style={{ fontSize: 22, fontWeight: '700', backgroundColor: '#fff', color: '#111827' }}>
+            {viewPost?.title}
+          </Dialog.Title>
+          
+          <Dialog.ScrollArea style={{ backgroundColor: '#fff' }}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 24, backgroundColor: '#fff' }}>
+              {/* Show "Mark as Found" or "Unmark" button for lost posts owned by the user */}
+              {viewPost && user?.id === viewPost.user_id && viewPost.type === 'lost' && (
+                viewPost.is_found || viewPost.description?.includes('✅ This item has been found!') ? (
+                  // Show Unmark button if already marked as found
+                  <Button
+                    mode="contained"
+                    onPress={() => handleUnmark(viewPost)}
+                    style={{ marginTop: 8, marginBottom: 12 }}
+                    buttonColor="#dc2626"
+                  >
+                    Unmark
+                  </Button>
+                ) : (
+                  // Show Mark as Found button if not yet marked
+                  <Button
+                    mode="contained"
+                    onPress={() => handleMarkFound(viewPost)}
+                    style={{ marginTop: 8, marginBottom: 12 }}
+                    buttonColor="#16a34a"
+                  >
+                    Mark as Found
+                  </Button>
+                )
+              )}
+
+              {/* Post Details */}
+              {viewPost && (
+                <>
+                  <Text style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+                    {viewPost.created_at
+                      ? new Date(viewPost.created_at).toLocaleString()
+                      : ''}
+                  </Text>
+
+                  {viewPost.image_url && (
+                    <View style={{
+                      width: '100%',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: 12,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      marginBottom: 18,
+                    }}>
+                      <Image
+                        source={{ uri: viewPost.image_url }}
+                        style={[
+                          { width: '100%', maxHeight: 420 },
+                          imageAspect ? { aspectRatio: imageAspect } : { height: 260 },
+                        ]}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
+
+                  <Text style={styles.detailLabel}>Type</Text>
+                  <Text style={styles.detailValue}>{viewPost.type || '-'}</Text>
+
+                  <Text style={styles.detailLabel}>Category</Text>
+                  <Text style={styles.detailValue}>{viewPost.category || '-'}</Text>
+
+                  <Text style={styles.detailLabel}>Description</Text>
+                  {/* Show special found message styling if applicable */}
+                  {viewPost.is_found || viewPost.description?.includes('✅ This item has been found!') ? (
+                    <View>
+                      <Text style={styles.detailBody}>
+                        {viewPost.description?.replace('\n✅ This item has been found!', '')}
+                      </Text>
+                      <View style={{ 
+                        backgroundColor: '#dcfce7', 
+                        borderLeftWidth: 4, 
+                        borderLeftColor: '#16a34a', 
+                        padding: 12, 
+                        marginTop: 16, 
+                        borderRadius: 8 
+                      }}>
+                        <Text style={{ 
+                          fontSize: 16, 
+                          fontWeight: 'bold', 
+                          color: '#16a34a', 
+                          letterSpacing: 0.5 
+                        }}>
+                          ✅ This item has been found!
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.detailBody}>
+                      {viewPost.description || 'No description provided.'}
+                    </Text>
+                  )}
+
+                  <Text style={styles.detailLabel}>Location</Text>
+                  {viewPost.latitude && viewPost.longitude ? (
+                    <Text style={styles.detailValue}>
+                      {viewPost.latitude.toFixed(5)}, {viewPost.longitude.toFixed(5)}
+                    </Text>
+                  ) : (
+                    <Text style={styles.detailValue}>No coordinates</Text>
+                  )}
+
+                  <Text style={styles.detailLabel}>Contact Information</Text>
+                  <Text style={styles.detailValue}>
+                    {viewPost.contact_info ? viewPost.contact_info : 'Not available'}
+                  </Text>
+
+                  {viewPost.latitude && viewPost.longitude ? (
+                    <View style={{
+                      width: '100%',
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      marginTop: 18,
+                      backgroundColor: '#eef2ff',
+                      borderWidth: 1,
+                      borderColor: '#c7d2fe',
+                    }}>
+                      <PostsMapView
+                        posts={[viewPost]}
+                        initialRegion={{
+                          latitude: viewPost.latitude,
+                          longitude: viewPost.longitude,
+                          latitudeDelta: 0.005,
+                          longitudeDelta: 0.005,
+                        }}
+                        interactive={false}
+                        height={220}
+                      />
+                    </View>
+                  ) : (
+                    <Text style={{ marginTop: 18, fontSize: 14, fontStyle: 'italic', color: '#666' }}>
+                      Item not on map
+                    </Text>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
+
+          <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            {/* Contact button - only when viewing other user's post */}
+            {viewPost && viewPost.user_id !== user?.id && (
+              <Button
+                mode="contained"
+                onPress={async () => {
+                  if (!viewPost?.user_id) {
+                    Alert.alert('Unavailable', 'The poster is not signed in, so direct messaging is unavailable. Use the contact info if provided.');
+                    return;
+                  }
+
+                  // Close the popup first
+                  const postData = viewPost;
+                  setViewPost(null);
+
+                  const { data, error } = await supabase.rpc('get_or_create_conversation', {
+                    user1_id: user?.id,
+                    user2_id: postData.user_id,
+                    in_post_id: postData.id,
+                  });
+
+                  if (error) {
+                    console.error('get_or_create_conversation failed:', error);
+                    Alert.alert('Error', error.message);
+                    return;
+                  }
+
+                  const cid = Array.isArray(data) ? data[0]?.conversation_id : (data as any)?.conversation_id;
+                  if (!cid) {
+                    Alert.alert('Error', 'Could not create or load the conversation.');
+                    return;
+                  }
+
+                  navigation.navigate('Chat', {
+                    conversationId: cid,
+                    otherUserId: postData.user_id!,
+                    otherUserEmail: postData.user_email ?? null,
+                  });
+                }}
+              >
+                Contact
+              </Button>
+            )}
+            <Button onPress={() => setViewPost(null)}>
+              Close
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* User Selection Dialog for Mark as Found */}
+        <Dialog
+          visible={userSelectionVisible}
+          onDismiss={() => setUserSelectionVisible(false)}
+          style={{ maxHeight: '70%', backgroundColor: '#fff' }}
+        >
+          <Dialog.Title style={{ backgroundColor: '#fff', color: '#111827' }}>
+            Select Who Found the Item
+          </Dialog.Title>
+          <Dialog.Content style={{ backgroundColor: '#fff' }}>
+            <Text style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
+              Choose the person who helped you retrieve your item to rate them.
+            </Text>
+            {loadingContacts ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: '#666' }}>Loading contacts...</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 400 }}>
+                {contactedUsers.map((contactUser, index) => (
+                  <TouchableOpacity
+                    key={contactUser.user_id}
+                    onPress={() => handleUserSelected(contactUser)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 12,
+                      marginBottom: 8,
+                      backgroundColor: '#f9fafb',
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#e5e7eb',
+                    }}
+                  >
+                    {contactUser.profile_picture ? (
+                      <Image
+                        source={{ uri: contactUser.profile_picture }}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          marginRight: 12,
+                          backgroundColor: '#f0f0f0',
+                        }}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          marginRight: 12,
+                          backgroundColor: '#e5e7eb',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <IconButton icon="account" size={24} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: '#111' }}>
+                        {contactUser.display_name || contactUser.user_email || 'Anonymous'}
+                      </Text>
+                      {contactUser.last_message_time && (
+                        <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                          Last contacted:{' '}
+                          {new Date(contactUser.last_message_time).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
+                    <IconButton icon="chevron-right" size={20} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            <Button onPress={() => setUserSelectionVisible(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Rating Modal - Shows after selecting finder */}
+      <RateFinderModal
+        visible={ratingModalVisible}
+        finderName={finderToRate?.display_name || finderToRate?.user_email || 'this user'}
+        onSubmit={handleRatingSubmit}
+        onSkip={handleSkipRating}
+      />
 
       {/* Floating Action Button - Fixed position, bottom-right corner */}
       <FloatingActionButton onPress={openModal} />
@@ -889,5 +1401,26 @@ const styles = StyleSheet.create({
   reportAnonText: {
     fontSize: 14,
     color: '#333',
+  },
+
+  // Post detail modal styles
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 12,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: '#111827',
+  },
+  detailBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#333',
+    marginTop: 2,
   },
 });

@@ -94,6 +94,7 @@ export default function AllPostsScreen() {
     let query = supabase
       .from('posts')
       .select('*')
+      .eq('active', true)  // Only show active posts (not marked as found)
       .order('created_at', { ascending: false });
 
     // Type filter (lost/found)
