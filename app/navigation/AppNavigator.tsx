@@ -24,6 +24,7 @@ function MainTabs() {
   const { isAdmin } = useIsAdmin();
   return (
     <Tab.Navigator
+      id={undefined}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#0ea5a4',
@@ -89,7 +90,10 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        id={undefined}
+        screenOptions={{ headerShown: false }}
+      >
         {/* Auth screens - only shown when NOT logged in */}
         {!user && (
           <>

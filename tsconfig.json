@@ -3,7 +3,11 @@
     "baseUrl": "./app", // Adjust this if your components are in a different directory
     "paths": {
       "@/*": ["*"]
-    }
+    },
+    "skipLibCheck": true
   },
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "exclude": [
+    "node_modules"
+  ]
 }
