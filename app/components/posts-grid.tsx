@@ -17,12 +17,8 @@ import PostsMapView from './map-view';
 import { supabase } from '../lib/supabase';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-<<<<<<< HEAD
-import { listComments, createComment, deleteComment, type Comment } from '../lib/comments';
-=======
 import RateFinderModal from './rate-finder-modal';
 import { createSuccessfulReturn, rateUser } from '../lib/returns';
->>>>>>> 6f030b3 (link rating modal & fix my post view & change post status options)
 
 interface Post {
   id?: string | number;
@@ -73,12 +69,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [imageAspect, setImageAspect] = useState<number | null>(null);
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
 
-<<<<<<< HEAD
-  // Comments state for the currently viewed post
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [newCommentBody, setNewCommentBody] = useState('');
-=======
   // User selection dialog for mark as found flow
   const [userSelectionVisible, setUserSelectionVisible] = useState(false);
   const [contactedUsers, setContactedUsers] = useState<any[]>([]);
@@ -89,7 +79,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
   const [finderToRate, setFinderToRate] = useState<any>(null);
   const [returnedPostId, setReturnedPostId] = useState<number | null>(null);
->>>>>>> 6f030b3 (link rating modal & fix my post view & change post status options)
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -116,53 +105,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
     }
   }, [viewPost]);
 
-<<<<<<< HEAD
-  // Load comments whenever a post is opened in the detail dialog
-  useEffect(() => {
-    const load = async () => {
-      if (!viewPost?.id) {
-        setComments([]);
-        return;
-      }
-      try {
-        setCommentsLoading(true);
-        const data = await listComments(Number(viewPost.id));
-        setComments(data);
-      } catch (e) {
-        console.error('Failed to load comments', e);
-      } finally {
-        setCommentsLoading(false);
-      }
-    };
-    load();
-  }, [viewPost?.id]);
-
-  // Create a new comment for the currently viewed post
-  const handleAddComment = async () => {
-    if (!viewPost?.id) return;
-    const trimmed = newCommentBody.trim();
-    if (!trimmed) return;
-    if (!user) {
-      Alert.alert('Sign in required', 'Please log in to add a comment.');
-      return;
-    }
-    try {
-      const created = await createComment(Number(viewPost.id), trimmed, user.id);
-      setComments((prev) => [created, ...prev]);
-      setNewCommentBody('');
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to add comment');
-    }
-  };
-
-  // Delete a single comment and optimistically remove it from local state
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      await deleteComment(commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to delete comment');
-=======
   // Helper function to mark post as found without rating (when no contacts)
   const markPostAsFoundOnly = async (post: Post) => {
     const { error } = await supabase
@@ -181,7 +123,6 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       // Refresh posts and close dialog
       if (onRefresh) onRefresh();
       setViewPost(null);
->>>>>>> 6f030b3 (link rating modal & fix my post view & change post status options)
     }
   };
 
