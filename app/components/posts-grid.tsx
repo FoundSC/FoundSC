@@ -19,6 +19,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import RateFinderModal from './rate-finder-modal';
 import { createSuccessfulReturn, rateUser } from '../lib/returns';
+import { listComments, createComment, deleteComment, type Comment } from '../lib/comments';
 
 interface Post {
   id?: string | number;
@@ -89,6 +90,11 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
   const [editContactInfo, setEditContactInfo] = useState(''); // Add state for contact info
   const [editImageUri, setEditImageUri] = useState<string | null>(null); // Add state for image URI
 
+  // Comments state for the currently viewed post
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentBody, setNewCommentBody] = useState('');
+
   // Compute aspect ratio for detail image
   useEffect(() => {
     if (viewPost && (viewPost.image_url || viewPost.imageUri)) {
@@ -104,6 +110,58 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       setImageAspect(null);
     }
   }, [viewPost]);
+
+  // Load comments whenever a post is opened in the detail dialog
+  useEffect(() => {
+    if (!viewPost?.id) {
+      setComments([]);
+      setNewCommentBody('');
+      return;
+    }
+
+    const postIdNum = Number(viewPost.id);
+    if (!Number.isFinite(postIdNum)) {
+      setComments([]);
+      setNewCommentBody('');
+      return;
+    }
+
+    setCommentsLoading(true);
+    listComments(postIdNum)
+      .then((rows) => setComments(rows))
+      .catch((err) => {
+        console.error('[comments] load failed', err?.message || err);
+      })
+      .finally(() => {
+        setCommentsLoading(false);
+      });
+  }, [viewPost?.id]);
+
+  const handleAddComment = async () => {
+    if (!viewPost?.id || !newCommentBody.trim()) return;
+
+    const postIdNum = Number(viewPost.id);
+    if (!Number.isFinite(postIdNum)) return;
+
+    try {
+      const created = await createComment(postIdNum, newCommentBody, user?.id);
+      setComments((prev) => [created, ...prev]);
+      setNewCommentBody('');
+    } catch (e: any) {
+      console.error('[comments] add failed', e?.message || e);
+      Alert.alert('Error', 'Failed to add comment. Please try again.');
+    }
+  };
+
+  const handleDeleteComment = async (id: number) => {
+    try {
+      await deleteComment(id);
+      setComments((prev) => prev.filter((c) => c.id !== id));
+    } catch (e: any) {
+      console.error('[comments] delete failed', e?.message || e);
+      Alert.alert('Error', 'Failed to delete comment. Please try again.');
+    }
+  };
 
   // Helper function to mark post as found without rating (when no contacts)
   const markPostAsFoundOnly = async (post: Post) => {
