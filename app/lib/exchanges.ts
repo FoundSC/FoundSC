@@ -48,23 +48,7 @@ export async function createExchange(
       return { data: null, error };
     }
 
-    // Then update the post status to 'in_exchange'
-    const { error: postError } = await supabase
-      .from('posts')
-      .update({ status: 'in_exchange' })
-      .eq('id', postId)
-      .eq('user_id', postOwnerId); // Ensure owner can only update their own posts
-
-    if (postError) {
-      console.error('Error updating post status:', postError);
-      // Rollback: delete the exchange if post update fails
-      await supabase
-        .from('exchanges')
-        .delete()
-        .eq('id', data.id);
-      return { data: null, error: postError };
-    }
-
+    // Note: Legacy status update removed - now using active/is_found fields instead
     return { data, error: null };
   } catch (err) {
     console.error('Exception creating exchange:', err);
@@ -162,14 +146,7 @@ export async function updateExchangeStatus(
       .select()
       .single();
 
-    // If cancelled, update post status back to active
-    if (status === 'cancelled' && !error) {
-      const exchange = data as Exchange;
-      await supabase
-        .from('posts')
-        .update({ status: 'active' })
-        .eq('id', exchange.post_id);
-    }
+    // Note: Legacy status revert removed - now using active/is_found fields instead
 
     return { data, error };
   } catch (err) {
