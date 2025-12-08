@@ -137,6 +137,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       });
   }, [viewPost?.id]);
 
+  // Handle adding a new comment
   const handleAddComment = async () => {
     if (!viewPost?.id || !newCommentBody.trim()) return;
 
@@ -699,7 +700,11 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                     </Text>
                   )}
 
-                  {/* Comments Section */}
+                  {/* Comments Section
+                  - Comments header
+                  - No comments yet empty state
+                  - Visual layout of each comments
+                  - Delete icon for the comment owner */}
                   <Text style={styles.detailLabel}>Comments</Text>
                   {commentsLoading ? (
                     <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
@@ -752,6 +757,8 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
                         fontSize: 14,
                         minHeight: 40,
                       }}
+
+                      // Adding a comment section/input
                       placeholder={user ? 'Add a comment...' : 'Log in to add a comment'}
                       value={newCommentBody}
                       onChangeText={setNewCommentBody}

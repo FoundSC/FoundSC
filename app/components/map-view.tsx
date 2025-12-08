@@ -109,6 +109,8 @@ export default function PostsMapView({
     })();
   }, [preferredRegion, initialRegion, posts, hasInitializedRegion]);
 
+  // converts map region into north/south/east/west bounds and calls onBoundsChange
+  // creates rectangle that matches the visible map viewport
   const handleRegionChangeComplete = useCallback(
     (r: Region) => {
       setRegion(r);
@@ -141,6 +143,7 @@ export default function PostsMapView({
     );
   }
 
+  // ensures only valid coordinates become pins
   const postsWithCoordinates = posts.filter(p => p.latitude !== null && p.longitude !== null);
 
   return (
@@ -150,7 +153,7 @@ export default function PostsMapView({
         style={styles.map}
         initialRegion={region}   // Center on item or provided region
         region={region}
-        onRegionChangeComplete={handleRegionChangeComplete}
+        onRegionChangeComplete={handleRegionChangeComplete} // detects when user pans/zooms the map
         showsUserLocation={false}        // Do not auto-center on user
         showsMyLocationButton={false}
         scrollEnabled={interactive}
@@ -161,6 +164,7 @@ export default function PostsMapView({
         loadingIndicatorColor="#6200ee"
         loadingBackgroundColor="#f5f5f5"
       >
+        {/* Where each pin is created */}
         {postsWithCoordinates.map(post => (
           <Marker
             key={post.id}
