@@ -254,6 +254,26 @@ export default function ProfileScreen({ route, navigation }: any) {
             // Remove the found message from description
             const cleanedDescription = post.description?.replace('\n✅ This item has been found!', '') || '';
 
+              // Delete any successful_return records for this post
+            const { error: deleteError } = await supabase
+              .from('successful_returns')
+              .delete()
+              .eq('post_id', post.id);
+            
+            if (deleteError) {
+              console.error('Error deleting successful return:', deleteError);
+            }
+
+            // Also delete any ratings for this post
+            const { error: ratingsDeleteError } = await supabase
+              .from('ratings')
+              .delete()
+              .eq('post_id', post.id);
+
+            if (ratingsDeleteError) {
+              console.error('Error deleting ratings:', ratingsDeleteError);
+            }
+            
             const { error } = await supabase
               .from('posts')
               .update({
@@ -418,22 +438,16 @@ export default function ProfileScreen({ route, navigation }: any) {
    * @param item - Post object from database
    */
   const renderPostCard = (item: any) => {
-    // Determine status display - prioritize is_found over status field
+    // Determine status display - check is_found first, then active
     const getStatusInfo = (post: any) => {
       if (post.is_found) {
         return { label: 'found', color: '#4CAF50' };
       }
 
-      const statusColors: Record<string, string> = {
-        in_exchange: '#FF9800',
-        completed: '#4CAF50',
-        cancelled: '#dc2626',
-        active: '#2196F3',
-      };
-
+      // Simplified - only check active boolean (legacy status field removed)
       return {
-        label: post.status || 'active',
-        color: statusColors[post.status] || '#2196F3'
+        label: post.active ? 'active' : 'inactive',
+        color: post.active ? '#2196F3' : '#6b7280'
       };
     };
 

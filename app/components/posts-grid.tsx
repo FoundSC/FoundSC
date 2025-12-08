@@ -311,6 +311,26 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           onPress: async () => {
             // Remove the found message from description
             const cleanedDescription = post.description?.replace('\n✅ This item has been found!', '') || '';
+            
+            // Delete any successful_return records for this post
+            const { error: deleteError } = await supabase
+              .from('successful_returns')
+              .delete()
+              .eq('post_id', post.id);
+
+            if (deleteError) {
+              console.error('Error deleting successful return:', deleteError);
+            }
+
+            // Also delete any ratings for this post
+            const { error: ratingsDeleteError } = await supabase
+              .from('ratings')
+              .delete()
+              .eq('post_id', post.id);
+
+            if (ratingsDeleteError) {
+              console.error('Error deleting ratings:', ratingsDeleteError);
+            }
 
             const { error } = await supabase
               .from('posts')
