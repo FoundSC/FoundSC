@@ -1067,6 +1067,17 @@ export default function ProfileScreen({ route, navigation }: any) {
             )}
           </Dialog.Content>
           <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            <Button 
+              onPress={async () => {
+                if (selectedPostForRating) {
+                  setUserSelectionVisible(false);
+                  await markPostAsFoundOnly(selectedPostForRating);
+                  setSelectedPostForRating(null);
+                }
+              }}
+            >
+              Skip Rating
+            </Button>
             <Button onPress={() => setUserSelectionVisible(false)}>Cancel</Button>
           </Dialog.Actions>
         </Dialog>
