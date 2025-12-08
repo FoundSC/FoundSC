@@ -589,10 +589,6 @@ export default function AllPostsScreen() {
               onDelete={handleDeletePost}
             />
           ) : (
-            {/* Watches the visible Google Maps viewport
-              onBoundsChange={(bounds), when the user pans or zooms or changes the map’s bounds
-              Those bounds are passed directly into fetchPosts() for Supbase retrieval
-            */}
             <PostsMapView
               posts={posts}
               onBoundsChange={(bounds) =>
