@@ -4,6 +4,7 @@ import { AuthProvider } from './app/contexts/AuthContext';
 import { AddPostProvider } from './app/contexts/AddPostContext';
 import AppNavigator from './app/navigation/AppNavigator';
 import ErrorBoundary from './app/components/error-boundary';
+import { PushInitializer } from './app/components/push-initializer';
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <PaperProvider>
         <AuthProvider>
           <AddPostProvider>
+            <PushInitializer />
             <AppNavigator />
           </AddPostProvider>
         </AuthProvider>

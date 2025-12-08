@@ -23,6 +23,7 @@ import Header from '../components/header';
 import { Hero } from '../components/hero';
 import LocationPicker from '../components/location-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { setLostPostMatchRules } from '../lib/notifications';
 
 /**
  * AllPostsScreen Component
@@ -176,6 +177,17 @@ export default function AllPostsScreen() {
     return 'image/jpeg';
   };
 
+  // Very small keyword extractor, used to build simple match rules for LOST posts
+  const extractKeywords = (text: string) => {
+    const stop = new Set([
+      'the','and','for','with','that','this','you','your','from','near','lost','found','item','items','a','an','of','to','in','on','at','is','it'
+    ]);
+    return String(text || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter((w) => w && w.length >= 3 && !stop.has(w));
+  };
+
   const uploadImageIfNeeded = async (uri: string | null): Promise<string | null> => {
     if (!uri) return null;
     try {
@@ -246,6 +258,15 @@ export default function AllPostsScreen() {
     }
 
     setPosts((prev) => [data, ...prev]);
+    // For LOST posts, upsert simple keyword/category rules so the FOUND-post trigger can notify
+    if (safeType === 'lost') {
+      try {
+        const kws = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);
+        await setLostPostMatchRules(data.id as number, { keywords: kws, category: safeCategory || null });
+      } catch (e: any) {
+        console.warn('[match] rules upsert failed', e?.message || e);
+      }
+    }
     // Reset form and close modal
     setNewTitle('');
     setNewContent('');
