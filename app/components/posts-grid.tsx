@@ -249,7 +249,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       console.error('Error creating successful return:', error);
       return;
     }
-
+    
     // Show rating modal immediately
     setFinderToRate(selectedUser);
     setReturnedPostId(selectedPostForRating.id as number);

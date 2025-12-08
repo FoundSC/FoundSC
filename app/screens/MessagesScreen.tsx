@@ -30,7 +30,6 @@ export default function MessagesScreen({ navigation }: any) {
     fetchConversations();
 
     // Realtime subscription: refresh the list when a new message is inserted anywhere.
-    // We keep it simple and refetch; alternatively we could update the specific conversation in place.
     const subscription = supabase
       .channel('messages')
       .on('postgres_changes', {
