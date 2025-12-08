@@ -214,7 +214,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       setUserSelectionVisible(false);
       Alert.alert(
         'No Contacts',
-        'No one has contacted you about this post yet. Are you sure you want to mark it as found?',
+        'No one has contacted you about this post yet. Are you sure you want to close this post?',
         [
           { text: 'No', style: 'cancel' },
           {
