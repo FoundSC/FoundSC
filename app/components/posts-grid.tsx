@@ -214,7 +214,7 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
       setUserSelectionVisible(false);
       Alert.alert(
         'No Contacts',
-        'No one has contacted you about this post yet. Are you sure you want to mark it as found?',
+        'No one has contacted you about this post yet. Are you sure you want to close this post?',
         [
           { text: 'No', style: 'cancel' },
           {
@@ -311,6 +311,26 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
           onPress: async () => {
             // Remove the found message from description
             const cleanedDescription = post.description?.replace('\n✅ This item has been found!', '') || '';
+            
+            // Delete any successful_return records for this post
+            const { error: deleteError } = await supabase
+              .from('successful_returns')
+              .delete()
+              .eq('post_id', post.id);
+
+            if (deleteError) {
+              console.error('Error deleting successful return:', deleteError);
+            }
+
+            // Also delete any ratings for this post
+            const { error: ratingsDeleteError } = await supabase
+              .from('ratings')
+              .delete()
+              .eq('post_id', post.id);
+
+            if (ratingsDeleteError) {
+              console.error('Error deleting ratings:', ratingsDeleteError);
+            }
 
             const { error } = await supabase
               .from('posts')
@@ -1020,6 +1040,17 @@ export default function PostsGrid({ posts, onEdit, onDelete, onRefresh }: PostsG
             )}
           </Dialog.Content>
           <Dialog.Actions style={{ backgroundColor: '#fff' }}>
+            <Button 
+              onPress={async () => {
+                if (selectedPostForRating) {
+                  setUserSelectionVisible(false);
+                  await markPostAsFoundOnly(selectedPostForRating);
+                  setSelectedPostForRating(null);
+                }
+              }}
+            >
+              Skip Rating
+            </Button>
             <Button onPress={() => setUserSelectionVisible(false)}>Cancel</Button>
           </Dialog.Actions>
         </Dialog>

@@ -9,7 +9,6 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import AllPostsScreen from '../screens/AllPostsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
-import RatingScreen from '../screens/RatingScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import { View, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -130,18 +129,6 @@ export default function AppNavigator() {
                 title: 'Edit Profile',
                 headerStyle: { backgroundColor: '#6d28d9' },
                 headerTintColor: '#fff',
-              }}
-            />
-            <Stack.Screen
-              name="Rating"
-              component={RatingScreen}
-              options={{
-                headerShown: true,
-                title: 'Rate Exchange',
-                headerStyle: { backgroundColor: '#6d28d9' },
-                headerTintColor: '#fff',
-                // Prevent back navigation during rating (users should complete or cancel)
-                headerBackVisible: false,
               }}
             />
           </>

@@ -69,20 +69,68 @@ serve(async (req) => {
     }
 
     // Grouped send
-    const { ok, data } = await sendExpoPush(messages.map(({ to, title, body }) => ({ to, title, body })));
+    const payload = messages.map(({ to, title, body }) => ({ to, title, body }));
+    const { ok, data } = await sendExpoPush(payload);
+    console.log("expo push response", JSON.stringify(data || {}, null, 2));
+
     if (!ok) {
       console.error("expo push error", data);
-      // mark all as failed
       const ids = [...new Set(messages.map((m) => m._id))];
-      await supabase.from("notifications").update({ status: "failed", error: JSON.stringify(data).slice(0, 2000) }).in("id", ids);
+      await supabase
+        .from("notifications")
+        .update({ status: "failed", error: JSON.stringify(data).slice(0, 2000) })
+        .in("id", ids);
       return new Response(JSON.stringify({ ok: false, error: "expo push failed" }), { status: 500 });
     }
 
-    // mark as sent
-    const sentIds = [...new Set(messages.map((m) => m._id))];
-    await supabase.from("notifications").update({ status: "sent", sent_at: new Date().toISOString() }).in("id", sentIds);
+    // Inspect per-message receipts from Expo; mark successes and failures separately
+    const receipts: Array<{ status?: string; message?: string; details?: any }> =
+      (data && (data as any).data && Array.isArray((data as any).data)) ? (data as any).data : [];
 
-    return new Response(JSON.stringify({ ok: true, processed: sentIds.length }), {
+    let sentIds: number[] = [];
+    let failed: { id: number; err: any; to?: string }[] = [];
+
+    if (receipts.length === messages.length) {
+      receipts.forEach((r, idx) => {
+        const msg = messages[idx];
+        if (!msg) return;
+        if (r && r.status === "ok") {
+          sentIds.push(msg._id);
+        } else {
+          failed.push({ id: msg._id, err: r, to: msg.to });
+        }
+      });
+    } else {
+      // Fallback: if counts don't match, assume success and mark all as sent
+      sentIds = [...new Set(messages.map((m) => m._id))];
+    }
+
+    // Mark failures
+    if (failed.length > 0) {
+      const ids = failed.map((f) => f.id);
+      await supabase
+        .from("notifications")
+        .update({ status: "failed", error: (failed[0]?.err ? JSON.stringify(failed[0].err) : "unknown").slice(0, 2000) })
+        .in("id", ids);
+
+      // Optional: clean up invalid tokens
+      for (const f of failed) {
+        const code = (f.err?.details && (f.err.details.error || f.err.details.__debug?.errorCode)) || f.err?.message;
+        if (String(code).toLowerCase().includes("devicenotregistered") && f.to) {
+          await supabase.from("device_push_tokens").delete().eq("token", f.to);
+        }
+      }
+    }
+
+    // Mark sent successes
+    if (sentIds.length > 0) {
+      await supabase
+        .from("notifications")
+        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .in("id", sentIds);
+    }
+
+    return new Response(JSON.stringify({ ok: true, processed: sentIds.length, failed: failed.length }), {
       headers: { "content-type": "application/json" },
     });
   } catch (e) {

@@ -21,11 +21,14 @@ export async function createSuccessfulReturn(
     // 1. Create the successful return record
     const { data: returnData, error: returnError } = await supabase
       .from('successful_returns')
-      .insert({
-        post_id: postId,
-        owner_id: ownerId,
-        finder_id: finderId,
-      })
+      .upsert(
+        {
+          post_id: postId,
+          owner_id: ownerId,
+          finder_id: finderId,
+        },
+        { onConflict: 'post_id' }
+      )
       .select()
       .single();
 
@@ -70,14 +73,17 @@ export async function rateUser(
   try {
     const { error } = await supabase
       .from('ratings')
-      .insert({
-        rater_id: raterId,
-        ratee_id: rateeId,
-        post_id: postId,
-        rating,
-        comment: comment || null,
-        exchange_id: null, // Not using exchanges anymore
-      });
+      .upsert(
+        {
+          rater_id: raterId,
+          ratee_id: rateeId,
+          post_id: postId,
+          rating,
+          comment: comment || null,
+          exchange_id: null, // Not using exchanges anymore
+        },
+        { onConflict: 'post_id,rater_id' }
+      );
 
     if (error) {
       console.error('Error submitting rating:', error);
