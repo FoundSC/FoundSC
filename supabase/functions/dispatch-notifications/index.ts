@@ -12,6 +12,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
+// Helper: send a batch to Expo Push API; returns ok flag and raw response JSON
 async function sendExpoPush(messages: Array<{ to: string; title: string; body: string }>) {
   if (messages.length === 0) return { ok: true };
   const res = await fetch("https://exp.host/--/api/v2/push/send", {
@@ -23,6 +24,7 @@ async function sendExpoPush(messages: Array<{ to: string; title: string; body: s
   return { ok: res.ok, data } as const;
 }
 
+// HTTP entrypoint: drains pending notifications and dispatches them via Expo
 serve(async (req) => {
   try {
     // Fetch a batch of pending notifications
@@ -41,6 +43,7 @@ serve(async (req) => {
     // Resolve target tokens per row: prefer row.device_token; else fetch by user_id; else skip
     const messages: { to: string; title: string; body: string; _id: number }[] = [];
 
+    // for each pending notification, if device_token is set, use it; else fetch by user_id
     for (const row of pending) {
       let tokens: string[] = [];
       if (row.device_token) {
@@ -62,7 +65,8 @@ serve(async (req) => {
           .eq("id", row.id);
         continue;
       }
-
+      
+      // if tokens are found, add them to the messages array
       for (const t of tokens) {
         messages.push({ to: t, title: "FoundSC", body: row.message || "New match found", _id: row.id });
       }

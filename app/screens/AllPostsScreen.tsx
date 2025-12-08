@@ -258,7 +258,10 @@ export default function AllPostsScreen() {
     }
 
     setPosts((prev) => [data, ...prev]);
-    // For LOST posts, upsert simple keyword/category rules so the FOUND-post trigger can notify
+    // Notifications: similar-listing flow
+    // For LOST posts, upsert simple keyword/category rules in lost_match_rules.
+    // The DB trigger notify_on_found_post reads these rules when a FOUND post is created
+    // and enqueues a row in notifications, which the Edge Function dispatches.
     if (safeType === 'lost') {
       try {
         const kws = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);

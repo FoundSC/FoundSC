@@ -33,7 +33,7 @@ BEGIN
   END IF;
 END $$;
 
--- Allow anyone to insert comments (MVP)
+-- Allow anyone to insert comments
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -46,8 +46,7 @@ BEGIN
   END IF;
 END $$;
 
--- Allow anyone to delete their own comments, or anyone if author_id is null (MVP)
--- Later we can tighten this to auth.uid()
+-- Allow anyone to delete their own comments, or anyone if author_id is null
 DO $$
 BEGIN
   IF NOT EXISTS (

@@ -8,6 +8,11 @@ export type NotificationSettings = {
   category_prefs?: string[];
 };
 
+/**
+ * Registers or updates this device's Expo push token.
+ * - Associates token with current user (if logged in) and platform
+ * - Used by the Edge Function to resolve who to notify
+ */
 export async function registerDevicePushToken(token: string) {
   const platform: 'ios' | 'android' | 'web' = Platform.OS === 'ios'
     ? 'ios'
@@ -25,6 +30,11 @@ export async function registerDevicePushToken(token: string) {
   if (error) throw error;
 }
 
+/**
+ * Upserts per-user notification preferences (keywords, categories, radius, etc.).
+ * Note: Similar-listing notifications are primarily driven by lost_match_rules per LOST post,
+ * but these settings can be used for user-level alert UIs.
+ */
 export async function upsertUserNotificationSettings(patch: NotificationSettings) {
   let user_id: string | null = null;
   try {
@@ -74,19 +84,27 @@ export async function upsertUserNotificationSettings(patch: NotificationSettings
   }
 }
 
+/**
+ * Ensures there is a lost_match_rules row for a LOST post.
+ * - The notify_on_found_post trigger reads these rules to enqueue notifications
+ *   when a matching FOUND post is created.
+ */
 export async function setLostPostMatchRules(lost_post_id: number, patch: { keywords?: string[]; radius_km?: number | null; category?: string | null; location_lat?: number | null; location_lng?: number | null; }) {
+  // look up existing rules
   const { data: existing } = await supabase
     .from('lost_match_rules')
     .select('id')
     .eq('lost_post_id', lost_post_id)
     .maybeSingle();
 
+  // if a row exists, update it
   if (existing?.id) {
     const { error } = await supabase
       .from('lost_match_rules')
       .update(patch)
       .eq('id', existing.id);
     if (error) throw error;
+    // if no row exists, create it
   } else {
     const { error } = await supabase
       .from('lost_match_rules')

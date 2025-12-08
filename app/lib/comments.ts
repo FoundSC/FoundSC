@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+/*
+  Comments client API
+  - Backed by the `comments` table (see migration 20251124133000_create_comments_table.sql)
+  - Used by PostsGrid and Profile screens to list/add/delete per-post comments
+ */
+
 export type Comment = {
   id: number;
   post_id: number;
