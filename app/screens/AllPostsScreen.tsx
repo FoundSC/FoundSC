@@ -149,6 +149,7 @@ export default function AllPostsScreen() {
   };
 
   // Image picker for new posts (same pattern as other screens)
+  // requests media permission and launches expo-image-picker
   const handlePickImage = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -188,6 +189,10 @@ export default function AllPostsScreen() {
       .filter((w) => w && w.length >= 3 && !stop.has(w));
   };
 
+  // fetches selected file
+  // uploads to Supabase Storage
+  // returns URL or null on failure
+  // able to see image as return
   const uploadImageIfNeeded = async (uri: string | null): Promise<string | null> => {
     if (!uri) return null;
     try {
@@ -427,7 +432,9 @@ export default function AllPostsScreen() {
         {/* Page Title */}
         <Text style={styles.pageTitle}>All Posts</Text>
 
-        {/* Search Bar */}
+        {/* Search Bar, allows users to search based on keyword find
+        Whatever the user types is stored in searchText
+        Inside fetchPosts(),  tells Supabase to return all posts with the title, description, or category that contains the keyword*/}
         <View style={styles.searchBarContainer}>
           <TextInput
             style={styles.searchInput}
@@ -665,6 +672,7 @@ export default function AllPostsScreen() {
                 />
               </View>
 
+              {/*Type selector -- lost or found */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Type</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -685,6 +693,7 @@ export default function AllPostsScreen() {
                 </View>
               </View>
 
+              {/* Category selector coming from CATEGORIES list*/}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Category</Text>
                 <Button
