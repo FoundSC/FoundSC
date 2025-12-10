@@ -264,8 +264,8 @@ export default function AllPostsScreen() {
     // and enqueues a row in notifications, which the Edge Function dispatches.
     if (safeType === 'lost') {
       try {
-        const kws = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);
-        await setLostPostMatchRules(data.id as number, { keywords: kws, category: safeCategory || null });
+        const post_keywords = extractKeywords(`${safeTitle} ${safeDescription}`).slice(0, 5);
+        await setLostPostMatchRules(data.id as number, { keywords: post_keywords, category: safeCategory || null });
       } catch (e: any) {
         console.warn('[match] rules upsert failed', e?.message || e);
       }
